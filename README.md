@@ -50,6 +50,19 @@ The objective is to replace the dummy client with a professional Android UI and 
 * Build the **Android UI** featuring `search()`, `play()`, and `addBalance()`[cite: 22, 23, 24].
 * Implement **Asynchronous Tasks** (Threads) for non-blocking TCP communication with the Master[cite: 154].
 
+/
+├── master/             # Master TCP Server (Member 1)
+├── worker/             # Worker Node Logic (Member 2)
+├── reducer/            # Reducer Aggregation Logic (Member 1/2)
+├── random-generator/   # Secure Random Generator (Member 3)
+├── manager-app/        # Java Console for Managers (Member 4)
+├── android-app/        # Android Project (Member 4 - Phase B)
+├── dummy-client/       # Phase A testing app (Member 4)
+├── shared/             # shared code (Message.java, Game.java, Utils)
+├── config/             # IPs, Ports, και Worker Nodes list
+├── assets/             # Game JSONs και Logos (.png)
+└── README.md           
+
 ---
 
 ## 🛠 Tech Stack
@@ -57,3 +70,4 @@ The objective is to replace the dummy client with a professional Android UI and 
 * **Network:** TCP Sockets (No external HTTP libraries) [cite: 96, 150]
 * **Storage:** In-memory Data Structures (No Databases) [cite: 109]
 * **Frontend:** Android SDK / Android Studio [cite: 173, 174]
+
