@@ -5,8 +5,8 @@ import java.io.Serializable;
 public class Message implements Serializable {
     private static final long serialVersionUID = 1L;
 
-    private String type;    // π.χ. "ADD_GAME", "SEARCH", "PLAY" [cite: 22, 23]
-    private Object payload; // Το περιεχόμενο (π.χ. ένα αντικείμενο Game)
+    private String type;    // π.χ. "ADD_GAME", "SEARCH", "PLAY"
+    private Object payload; // Το περιεχόμενο (π.χ. ένα αντικείμενο Game ή κάποιο request DTO)
 
     public Message(String type, Object payload) {
         this.type = type;
