@@ -1,1 +1,3 @@
 # Gambling App - Distributed Systems summer semester 2025-2026
+
+A distributed system for an online gambling platform developed as part of the Distributed Systems course (Spring 2025-2026) at Athens University of Economics and Business. The system consists of a multithreaded Java Master node that routes requests to Worker nodes using consistent hashing, a MapReduce-based Reducer for aggregation queries, a Secure Random Number Generator server with a producer-consumer buffer, a Manager console app, and an Android frontend. All communication is handled exclusively via TCP sockets, with in-memory data structures and synchronization using synchronized / wait-notify.
