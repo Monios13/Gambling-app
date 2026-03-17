@@ -50,18 +50,22 @@ The objective is to replace the dummy client with a professional Android UI and 
 * Build the **Android UI** featuring `search()`, `play()`, and `addBalance()`[cite: 22, 23, 24].
 * Implement **Asynchronous Tasks** (Threads) for non-blocking TCP communication with the Master[cite: 154].
 
+## 📂 Project Structure
+
+```text
 /
-├── master/             # Master TCP Server (Member 1)
-├── worker/             # Worker Node Logic (Member 2)
-├── reducer/            # Reducer Aggregation Logic (Member 1/2)
-├── random-generator/   # Secure Random Generator (Member 3)
-├── manager-app/        # Java Console for Managers (Member 4)
-├── android-app/        # Android Project (Member 4 - Phase B)
-├── dummy-client/       # Phase A testing app (Member 4)
-├── shared/             # shared code (Message.java, Game.java, Utils)
-├── config/             # IPs, Ports, και Worker Nodes list
-├── assets/             # Game JSONs και Logos (.png)
-└── README.md           
+├── android-app/        # Android Studio Project (Member 4 - Phase B)
+├── assets/             # Game JSONs and Logos (.png) [cite: 38, 39, 40]
+├── config/             # IPs, Ports, and Worker Nodes list [cite: 101]
+├── dummy-client/       # Phase A testing app (Member 4) [cite: 164]
+├── manager-app/        # Java Console for Managers (Member 4) [cite: 12]
+├── master/             # Master TCP Server (Member 1) [cite: 95]
+├── random-generator/   # Secure Random Generator (Member 3) [cite: 98]
+├── reducer/            # Reducer Aggregation Logic (Member 1) [cite: 105]
+├── shared/             # Common Classes (Game.java, Message.java)
+├── worker/             # Worker Node Logic (Member 2) [cite: 100]
+└── README.md           # Project Documentation     
+  
 
 ---
 
