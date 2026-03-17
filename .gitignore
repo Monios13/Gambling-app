@@ -1,0 +1,26 @@
+# ========== Android/Gradle ==========
+.gradle/
+build/
+captures/
+.externalNativeBuild/
+
+# Local configuration files
+local.properties
+
+# IntelliJ / Android Studio files
+.idea/
+*.iml
+*.iws
+
+# Log files
+*.log
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Java compiled files
+*.class
+
+# JSON temp/config files (optional, if you have temp JSON)
+*.json.tmp
