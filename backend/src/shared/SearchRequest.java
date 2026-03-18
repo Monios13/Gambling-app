@@ -2,36 +2,43 @@ package shared;
 
 import java.io.Serializable;
 
-/**
- * Αίτημα αναζήτησης παιχνιδιών για player / dummy client.
- */
 public class SearchRequest implements Serializable {
+    private String playerId;
+    private Double minStars;
+    private RiskLevel riskLevel;
+    private BetCategory betCategory;
 
-    private static final long serialVersionUID = 1L;
+    public SearchRequest() {}
 
-    private String providerName; // προαιρετικό
-    private Integer minStars;    // προαιρετικό
-    private String betCategory;  // "$", "$$", "$$$" ή null
-    private String riskLevel;    // "low", "medium", "high" ή null
-    private Double minBet;       // προαιρετικό
-    private Double maxBet;       // προαιρετικό
+    public String getPlayerId() {
+        return playerId;
+    }
 
-    public String getProviderName() { return providerName; }
-    public void setProviderName(String providerName) { this.providerName = providerName; }
+    public void setPlayerId(String playerId) {
+        this.playerId = playerId;
+    }
 
-    public Integer getMinStars() { return minStars; }
-    public void setMinStars(Integer minStars) { this.minStars = minStars; }
+    public Double getMinStars() {
+        return minStars;
+    }
 
-    public String getBetCategory() { return betCategory; }
-    public void setBetCategory(String betCategory) { this.betCategory = betCategory; }
+    public void setMinStars(Double minStars) {
+        this.minStars = minStars;
+    }
 
-    public String getRiskLevel() { return riskLevel; }
-    public void setRiskLevel(String riskLevel) { this.riskLevel = riskLevel; }
+    public RiskLevel getRiskLevel() {
+        return riskLevel;
+    }
 
-    public Double getMinBet() { return minBet; }
-    public void setMinBet(Double minBet) { this.minBet = minBet; }
+    public void setRiskLevel(RiskLevel riskLevel) {
+        this.riskLevel = riskLevel;
+    }
 
-    public Double getMaxBet() { return maxBet; }
-    public void setMaxBet(Double maxBet) { this.maxBet = maxBet; }
+    public BetCategory getBetCategory() {
+        return betCategory;
+    }
+
+    public void setBetCategory(BetCategory betCategory) {
+        this.betCategory = betCategory;
+    }
 }
-

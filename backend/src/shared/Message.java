@@ -3,16 +3,39 @@ package shared;
 import java.io.Serializable;
 
 public class Message implements Serializable {
-    private static final long serialVersionUID = 1L;
+    private MessageType type;
+    private MessageSource source;
+    private Object payload;
 
-    private String type;    // π.χ. "ADD_GAME", "SEARCH", "PLAY"
-    private Object payload; // Το περιεχόμενο (π.χ. ένα αντικείμενο Game ή κάποιο request DTO)
+    public Message() {}
 
-    public Message(String type, Object payload) {
+    public Message(MessageType type, MessageSource source, Object payload) {
         this.type = type;
+        this.source = source;
         this.payload = payload;
     }
 
-    public String getType() { return type; }
-    public Object getPayload() { return payload; }
+    public MessageType getType() {
+        return type;
+    }
+
+    public void setType(MessageType type) {
+        this.type = type;
+    }
+
+    public MessageSource getSource() {
+        return source;
+    }
+
+    public void setSource(MessageSource source) {
+        this.source = source;
+    }
+
+    public Object getPayload() {
+        return payload;
+    }
+
+    public void setPayload(Object payload) {
+        this.payload = payload;
+    }
 }
