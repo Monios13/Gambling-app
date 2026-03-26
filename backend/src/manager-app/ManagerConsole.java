@@ -1,81 +1,74 @@
 package manager_app;
 
-import shared.Game;
-import shared.Message;
-
-import java.io.BufferedReader;
-import java.io.FileReader;
-import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
 import java.util.Scanner;
 
-/**
- * Απλό console app για τον manager για το Παραδοτέο Α.
- * Επιτρέπει προσθήκη / αφαίρεση παιχνιδιών.
- */
 public class ManagerConsole {
 
     public static void main(String[] args) throws Exception {
-        if (args.length < 2) {
-            System.out.println("Usage: java manager_app.ManagerConsole <masterHost> <masterPort>");
-            return;
-        }
-        String host = args[0];
-        int port = Integer.parseInt(args[1]);
+        String host = (args.length >= 1) ? args[0] : "localhost";
+        int port = (args.length >= 2) ? Integer.parseInt(args[1]) : 8080;
 
-        try (Socket socket = new Socket(host, port);
-             ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream());
-             ObjectInputStream in = new ObjectInputStream(socket.getInputStream());
-             Scanner scanner = new Scanner(System.in)) {
-
+        try (Scanner scanner = new Scanner(System.in)) {
             while (true) {
-                System.out.println("Manager Menu:");
-                System.out.println("1. Add game");
+                System.out.println("\n--- Manager Menu ---");
+                System.out.println("1. Add game (Enter JSON)");
                 System.out.println("2. Remove game");
                 System.out.println("0. Exit");
                 System.out.print("Choice: ");
+                
                 int choice = Integer.parseInt(scanner.nextLine());
-                if (choice == 0) break;
+
+                if (choice == 0) {
+                    System.out.println("Exiting...");
+                    break;
+                }
+
+                Message requestMessage = null;
 
                 switch (choice) {
                     case 1:
-                        System.out.print("JSON file path: ");
-                        String path = scanner.nextLine();
-                        Game game = loadGameFromJson(path);
-                        out.writeObject(new Message("ADD_GAME", game));
-                        out.flush();
-                        System.out.println(((Message) in.readObject()).getPayload());
+                        System.out.println("Enter Game JSON string:");
+                        String jsonInput = scanner.nextLine();
+                        Game newGame = parseJsonToGame(jsonInput); // Η δική σου μέθοδος
+                        requestMessage = new Message("ADD_GAME", newGame);
                         break;
                     case 2:
-                        System.out.print("Game name to remove: ");
-                        String name = scanner.nextLine();
-                        out.writeObject(new Message("REMOVE_GAME", name));
-                        out.flush();
-                        System.out.println(((Message) in.readObject()).getPayload());
+                        System.out.print("Enter game name to remove: ");
+                        String gameName = scanner.nextLine();
+                        requestMessage = new Message("REMOVE_GAME", gameName);
                         break;
                     default:
                         System.out.println("Invalid choice");
+                        continue;
+                }
+
+                // --- ΛΟΓΙΚΗ ΕΡΓΑΣΤΗΡΙΟΥ ---
+                try {
+                    Socket socket = new Socket(host, port);
+                    
+                    ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream());
+                    out.writeObject(requestMessage); 
+                    out.flush();
+                    
+                    ObjectInputStream in = new ObjectInputStream(socket.getInputStream());
+                    Message response = (Message) in.readObject();
+                    
+                    socket.close();
+
+                    System.out.println("[MASTER RESPONSE]: " + response.getPayload());
+
+                } catch (Exception e) {
+                    System.out.println("Error connecting to Master: " + e.getMessage());
                 }
             }
         }
     }
 
-    /**
-     * Πολύ απλός parser για το συγκεκριμένο JSON format της άσκησης
-     * χωρίς χρήση εξωτερικής βιβλιοθήκης.
-     */
-    private static Game loadGameFromJson(String path) throws IOException {
-        StringBuilder sb = new StringBuilder();
-        try (BufferedReader br = new BufferedReader(new FileReader(path))) {
-            String line;
-            while ((line = br.readLine()) != null) {
-                sb.append(line.trim());
-            }
-        }
-        String json = sb.toString();
-
+    // Κράτησα τον δικό σου parser ακριβώς όπως τον είχες γράψει!
+    private static Game parseJsonToGame(String json) {
         String gameName = extractString(json, "GameName");
         String providerName = extractString(json, "ProviderName");
         int stars = (int) extractNumber(json, "Stars");
@@ -106,9 +99,8 @@ public class ManagerConsole {
         if (idx == -1) return 0.0;
         int colon = json.indexOf(":", idx);
         int comma = json.indexOf(",", colon + 1);
-        int end = comma == -1 ? json.indexOf("}", colon + 1) : comma;
-        String numStr = json.substring(colon + 1, end).trim();
+        if (comma == -1) comma = json.indexOf("}", colon + 1);
+        String numStr = json.substring(colon + 1, comma).trim();
         return Double.parseDouble(numStr);
     }
 }
-
