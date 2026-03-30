@@ -3,116 +3,100 @@ package shared;
 import java.io.Serializable;
 
 public class Game implements Serializable {
+    private static final long serialVersionUID = 1L;
+
+    // Στοιχεία από το JSON
     private String gameName;
     private String providerName;
-    private double stars;
+    private int stars;
     private int noOfVotes;
-    private String gameLogo;
+    private String gameLogo; 
     private double minBet;
     private double maxBet;
-    private RiskLevel riskLevel;
-    private String hashKey;
-    private String secret;
+    private String riskLevel;
+    private String hashKey; // Το secret S για τον SRG
 
-    // Derived (not necessarily from JSON)
-    private BetCategory betCategory;
-    private boolean jackpot;
+    // Στοιχεία που υπολογίζονται αυτόματα 
+    private String betCategory; 
+    private int jackpot;
 
-    public Game() {}
+    // Κατάσταση παιχνιδιού (αν είναι ορατό στους παίκτες)
+    private boolean active = true;
 
-    public String getGameName() {
-        return gameName;
-    }
+    // Στατιστικά για κέρδη / ζημιές (συγκεντρωτικά στο επίπεδο Worker)
+    // Τα ακριβή aggregates ανά πάροχο / παίκτη θα υπολογίζονται με MapReduce
+    private double totalProfitLoss; // >0 κέρδος για το σύστημα, <0 ζημιά
 
-    public void setGameName(String gameName) {
+    public Game(String gameName, String providerName, int stars, int noOfVotes, 
+                String gameLogo, double minBet, double maxBet, String riskLevel, String hashKey) {
         this.gameName = gameName;
-    }
-
-    public String getProviderName() {
-        return providerName;
-    }
-
-    public void setProviderName(String providerName) {
         this.providerName = providerName;
-    }
-
-    public double getStars() {
-        return stars;
-    }
-
-    public void setStars(double stars) {
         this.stars = stars;
-    }
-
-    public int getNoOfVotes() {
-        return noOfVotes;
-    }
-
-    public void setNoOfVotes(int noOfVotes) {
         this.noOfVotes = noOfVotes;
-    }
-
-    public String getGameLogo() {
-        return gameLogo;
-    }
-
-    public void setGameLogo(String gameLogo) {
         this.gameLogo = gameLogo;
-    }
-
-    public double getMinBet() {
-        return minBet;
-    }
-
-    public void setMinBet(double minBet) {
         this.minBet = minBet;
-    }
-
-    public double getMaxBet() {
-        return maxBet;
-    }
-
-    public void setMaxBet(double maxBet) {
         this.maxBet = maxBet;
-    }
-
-    public RiskLevel getRiskLevel() {
-        return riskLevel;
-    }
-
-    public void setRiskLevel(RiskLevel riskLevel) {
         this.riskLevel = riskLevel;
-    }
-
-    public String getHashKey() {
-        return hashKey;
-    }
-
-    public void setHashKey(String hashKey) {
         this.hashKey = hashKey;
+        
+        // Καλούμε τις μεθόδους για τον αυτόματο ορισμό πεδίων
+        calculateBetCategory();
+        calculateJackpot();
     }
 
-    public String getSecret() {
-        return secret;
+    // Λογική κατηγορίας πονταρίσματος
+    private void calculateBetCategory() {
+        if (this.minBet >= 5.0) {
+            this.betCategory = "$$$";
+        } else if (this.minBet >= 1.0) {
+            this.betCategory = "$$";
+        } else {
+            this.betCategory = "$";
+        }
     }
 
-    public void setSecret(String secret) {
-        this.secret = secret;
+    // Λογική Jackpot βάσει πινάκων ρίσκου
+    private void calculateJackpot() {
+        if (riskLevel.equalsIgnoreCase("low")) {
+            this.jackpot = 10;
+        } else if (riskLevel.equalsIgnoreCase("medium")) {
+            this.jackpot = 20;
+        } else if (riskLevel.equalsIgnoreCase("high")) {
+            this.jackpot = 40;
+        }
+
     }
 
-    public BetCategory getBetCategory() {
-        return betCategory;
+    // Getters / setters (χρειάζονται για να διαβάζουν / τροποποιούν οι Workers & Master τα δεδομένα)
+    public String getGameName() { return gameName; }
+    public int getStars() { return stars; }
+    public String getProviderName() { return providerName; }
+    public String getRiskLevel() { return riskLevel; }
+    public String getHashKey() { return hashKey; }
+    public int getJackpot() { return jackpot; }
+    public double getMinBet() { return minBet; }
+    public double getMaxBet() { return maxBet; }
+    public String getBetCategory() { return betCategory; }
+
+    public boolean isActive() { return active; }
+    public void setActive(boolean active) { this.active = active; }
+
+    public double getTotalProfitLoss() { return totalProfitLoss; }
+
+    //synchronized για να καταμετρώνται σωστά πιθανά ταυτόχορνα πονταρίσματα.
+    //χωρίς αυτό αν 2 παίκτες κερδίσουν ταυτόχρονα, η μία ενημέρωση μπορεί να σβήσει την άλλη
+    public synchronized void addToTotalProfitLoss(double delta) {
+        this.totalProfitLoss += delta;
     }
 
-    public void setBetCategory(BetCategory betCategory) {
-        this.betCategory = betCategory;
+    public synchronized void updateRiskLevel(String newRiskLevel) {
+        this.riskLevel = newRiskLevel;
+        calculateJackpot();
     }
 
-    public boolean isJackpot() {
-        return jackpot;
-    }
-
-    public void setJackpot(boolean jackpot) {
-        this.jackpot = jackpot;
+    @Override
+    public String toString() {
+        return "Game: " + gameName + " [" + betCategory + "], Risk: " + riskLevel
+        + ", Jackpot: " + jackpot;
     }
 }
