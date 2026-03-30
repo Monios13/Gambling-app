@@ -46,16 +46,25 @@ public class Game implements Serializable {
 
     // Λογική κατηγορίας πονταρίσματος
     private void calculateBetCategory() {
-        if (this.minBet >= 5.0) this.betCategory = "$$$";
-        else if (this.minBet >= 1.0) this.betCategory = "$$";
-        else this.betCategory = "$";
+        if (this.minBet >= 5.0) {
+            this.betCategory = "$$$";
+        } else if (this.minBet >= 1.0) {
+            this.betCategory = "$$";
+        } else {
+            this.betCategory = "$";
+        }
     }
 
     // Λογική Jackpot βάσει πινάκων ρίσκου
     private void calculateJackpot() {
-        if (riskLevel.equalsIgnoreCase("low")) this.jackpot = 10;
-        else if (riskLevel.equalsIgnoreCase("medium")) this.jackpot = 20;
-        else if (riskLevel.equalsIgnoreCase("high")) this.jackpot = 40;
+        if (riskLevel.equalsIgnoreCase("low")) {
+            this.jackpot = 10;
+        } else if (riskLevel.equalsIgnoreCase("medium")) {
+            this.jackpot = 20;
+        } else if (riskLevel.equalsIgnoreCase("high")) {
+            this.jackpot = 40;
+        }
+
     }
 
     // Getters / setters (χρειάζονται για να διαβάζουν / τροποποιούν οι Workers & Master τα δεδομένα)
@@ -75,6 +84,8 @@ public class Game implements Serializable {
 
     public double getTotalProfitLoss() { return totalProfitLoss; }
 
+    //synchronized για να καταμετρώνται σωστά πιθανά ταυτόχορνα πονταρίσματα.
+    //χωρίς αυτό αν 2 παίκτες κερδίσουν ταυτόχρονα, η μία ενημέρωση μπορεί να σβήσει την άλλη
     public synchronized void addToTotalProfitLoss(double delta) {
         this.totalProfitLoss += delta;
     }
@@ -82,5 +93,11 @@ public class Game implements Serializable {
     public synchronized void updateRiskLevel(String newRiskLevel) {
         this.riskLevel = newRiskLevel;
         calculateJackpot();
+    }
+
+    @Override
+    public String toString() {
+        return "Game: " + gameName + " [" + betCategory + "], Risk: " + riskLevel
+        + ", Jackpot: " + jackpot;
     }
 }
