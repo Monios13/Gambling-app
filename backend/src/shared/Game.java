@@ -70,7 +70,7 @@ public class Game implements Serializable {
     // Getters / setters (χρειάζονται για να διαβάζουν / τροποποιούν οι Workers & Master τα δεδομένα)
     public String getGameName() { return gameName; }
     public int getStars() { return stars; }
-    public String getProviderName() { return providerName; }
+
     public String getRiskLevel() { return riskLevel; }
     public String getHashKey() { return hashKey; }
     public int getJackpot() { return jackpot; }
