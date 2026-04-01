@@ -1,6 +1,8 @@
 package random_generator;
 
 import shared.Message;
+import shared.MessageSource;
+import shared.MessageType;
 import java.io.*;
 import java.net.*;
 import java.security.MessageDigest;
@@ -47,12 +49,12 @@ public class SRGHandler extends Thread {
             
             if (input instanceof Message) {
                 Message msg = (Message) input;
-                if ("RANDOM_REQUEST".equals(msg.getType())) {
+                if (msg.getType() == MessageType.RANDOM_REQUEST) {
                     String secret = (String) msg.getPayload();
                     
                     // Processing and response
                     String result = generateSecureResponse(secret);
-                    out.writeObject(new Message("RANDOM_RESPONSE", result));
+                    out.writeObject(new Message(MessageType.RANDOM_RESPONSE, MessageSource.SRG, result));
                     out.flush();
                 }
             }

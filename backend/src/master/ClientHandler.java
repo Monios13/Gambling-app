@@ -8,21 +8,21 @@ import java.util.*;
 
 public class ClientHandler implements Runnable {
 
-    private final Socket           clientSocket;
+    private final Socket clientSocket;
     private final List<WorkerInfo> workers;
-    private final String           reducerHost;
-    private final int              reducerPort;
-    private final WorkerSelector   selector;
+    private final String reducerHost;
+    private final int reducerPort;
+    private final WorkerSelector selector;
 
     public ClientHandler(Socket clientSocket,
                          List<WorkerInfo> workers,
                          String reducerHost,
-                         int    reducerPort) {
+                         int reducerPort) {
         this.clientSocket = clientSocket;
-        this.workers      = workers;
-        this.reducerHost  = reducerHost;
-        this.reducerPort  = reducerPort;
-        this.selector     = new WorkerSelector(workers);
+        this.workers = workers;
+        this.reducerHost = reducerHost;
+        this.reducerPort = reducerPort;
+        this.selector = new WorkerSelector(workers);
     }
 
     @Override
@@ -31,7 +31,7 @@ public class ClientHandler implements Runnable {
         System.out.println("[Master] Client connected: " + clientAddr);
 
         try (ObjectOutputStream out = new ObjectOutputStream(clientSocket.getOutputStream());
-             ObjectInputStream  in  = new ObjectInputStream(clientSocket.getInputStream())) {
+             ObjectInputStream in = new ObjectInputStream(clientSocket.getInputStream())) {
 
             out.flush();
 
@@ -52,7 +52,6 @@ public class ClientHandler implements Runnable {
                 System.out.println("[Master] Received " + msg.getType() + " from " + clientAddr);
 
                 switch (msg.getType()) {
-
                     case ADD_GAME: {
                         Game game = (Game) msg.getPayload();
                         WorkerInfo target = selector.select(game.getGameName());
@@ -136,7 +135,9 @@ public class ClientHandler implements Runnable {
         } catch (Exception e) {
             System.err.println("[Master] Error with client " + clientAddr + ": " + e.getMessage());
         } finally {
-            try { clientSocket.close(); } catch (IOException ignored) {}
+            try {
+                clientSocket.close();
+            } catch (IOException ignored) {}
             System.out.println("[Master] Client disconnected: " + clientAddr);
         }
     }
@@ -154,7 +155,9 @@ public class ClientHandler implements Runnable {
             t.start();
         }
         for (Thread t : mapThreads) {
-            try { t.join(); } catch (InterruptedException e) {
+            try {
+                t.join();
+            } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             }
         }
@@ -167,7 +170,7 @@ public class ClientHandler implements Runnable {
     private Object forwardToWorker(WorkerInfo worker, Message msg) {
         try (Socket s = new Socket(worker.getHost(), worker.getPort());
              ObjectOutputStream wOut = new ObjectOutputStream(s.getOutputStream());
-             ObjectInputStream  wIn  = new ObjectInputStream(s.getInputStream())) {
+             ObjectInputStream wIn = new ObjectInputStream(s.getInputStream())) {
 
             wOut.writeObject(msg);
             wOut.flush();
@@ -194,7 +197,7 @@ public class ClientHandler implements Runnable {
     private Object forwardToReducer(Message msg) {
         try (Socket s = new Socket(reducerHost, reducerPort);
              ObjectOutputStream rOut = new ObjectOutputStream(s.getOutputStream());
-             ObjectInputStream  rIn  = new ObjectInputStream(s.getInputStream())) {
+             ObjectInputStream rIn = new ObjectInputStream(s.getInputStream())) {
 
             rOut.writeObject(msg);
             rOut.flush();

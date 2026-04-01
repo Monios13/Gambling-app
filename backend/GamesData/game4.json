@@ -1,0 +1,12 @@
+{
+    "gameName": "Forest Guardian",
+    "providerName": "BetaSlot",
+    "stars": 4,
+    "noOfVotes": 130,
+    "gameLogo": "logos/forest.png",
+    "minBet": 2.5,
+    "maxBet": 100.0,
+    "riskLevel": "medium",
+    "hashKey": "Vault_Secure_821!A" ,
+    "_comment1" : "shared secret key"
+}

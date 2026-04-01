@@ -1,0 +1,12 @@
+{
+    "gameName": "Lucky Clover",
+    "providerName": "AlphaGames",
+    "stars": 4,
+    "noOfVotes": 150,
+    "gameLogo": "logos/clover.png",
+    "minBet": 0.1,
+    "maxBet": 10.0,
+    "riskLevel": "low",
+    "hashKey": "Srg_Safe_v1_!Lo",
+    "_comment1" : "shared secret key"
+}

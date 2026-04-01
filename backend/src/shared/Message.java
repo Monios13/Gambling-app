@@ -15,6 +15,8 @@ public class Message implements Serializable {
         this.payload = payload;
     }
 
+
+
     public MessageType getType() {
         return type;
     }

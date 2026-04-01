@@ -3,6 +3,8 @@ package worker;
 import java.net.Socket;
 import java.io.*;
 import shared.Message;
+import shared.MessageSource;
+import shared.MessageType;
 
 public class RandomProducer implements Runnable {
 
@@ -25,11 +27,11 @@ public class RandomProducer implements Runnable {
                 ObjectOutputStream out = new ObjectOutputStream(srgSocket.getOutputStream());
                 ObjectInputStream in = new ObjectInputStream(srgSocket.getInputStream())) {
 
-                out.writeObject(new Message("GET_RANDOM", null));
+                out.writeObject(new Message(MessageType.RANDOM_REQUEST, MessageSource.WORKER, hashKey));
                 out.flush();
 
                 Message response = (Message) in.readObject();
-                if (response.getType().equals("RANDOM_RESPONSE")) {
+                if (response.getType() == MessageType.RANDOM_RESPONSE) {
                     String payload = (String) response.getPayload();
                     String[] parts = payload.split(":");
                     int number = Integer.parseInt(parts[0]);

@@ -1,5 +1,12 @@
 package dummy_client;
 
+import shared.Message;
+import shared.MessageSource;
+import shared.MessageType;
+import shared.PlayRequest;
+import shared.PlayResultResponse;
+import shared.SearchRequest;
+
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
@@ -19,7 +26,7 @@ public class DummyPlayerClient {
                 System.out.println("3. Play game");
                 System.out.println("0. Exit");
                 System.out.print("Choice: ");
-                
+
                 int choice = Integer.parseInt(scanner.nextLine());
 
                 if (choice == 0) {
@@ -27,17 +34,14 @@ public class DummyPlayerClient {
                     break;
                 }
 
-                Message requestMessage = null;
+                Message requestMessage;
 
                 switch (choice) {
                     case 1:
-                        requestMessage = new Message("PING", null);
+                        requestMessage = new Message(MessageType.PING, MessageSource.PLAYER, null);
                         break;
                     case 2:
-                        System.out.print("Filter (empty for all): ");
-                        String filter = scanner.nextLine();
-                        // Αν έχεις SearchRequest στο shared, βάλτο εδώ, αλλιώς στέλνουμε το filter ως payload
-                        requestMessage = new Message("SEARCH", filter); 
+                        requestMessage = new Message(MessageType.SEARCH_GAMES, MessageSource.PLAYER, new SearchRequest());
                         break;
                     case 3:
                         System.out.print("Player ID: ");
@@ -48,32 +52,28 @@ public class DummyPlayerClient {
                         double bet = Double.parseDouble(scanner.nextLine());
 
                         PlayRequest preq = new PlayRequest(playerId, gameName, bet);
-                        requestMessage = new Message("PLAY", preq);
+                        requestMessage = new Message(MessageType.PLAY_GAME, MessageSource.PLAYER, preq);
                         break;
                     default:
                         System.out.println("Invalid choice");
                         continue;
                 }
 
-                // --- ΛΟΓΙΚΗ ΕΡΓΑΣΤΗΡΙΟΥ (Per-request Socket) ---
-                try {
-                    Socket socket = new Socket(host, port);
-                    
-                    ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream());
-                    out.writeObject(requestMessage); // Χρησιμοποιούμε writeObject λόγω του shared
-                    out.flush();
-                    
-                    ObjectInputStream in = new ObjectInputStream(socket.getInputStream());
-                    Message response = (Message) in.readObject();
-                    
-                    socket.close();
+                try (Socket socket = new Socket(host, port);
+                     ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream());
+                     ObjectInputStream in = new ObjectInputStream(socket.getInputStream())) {
 
-                    // Εμφάνιση αποτελέσματος
-                    if ("PLAY_RESULT".equals(response.getType())) {
-                        PlayResult result = (PlayResult) response.getPayload();
-                        System.out.println("Play result for game " + result.getGameName() +
-                                ": profit/loss=" + result.getProfitLoss() +
-                                (result.isJackpot() ? " (JACKPOT!)" : ""));
+                    out.writeObject(requestMessage);
+                    out.flush();
+
+                    Message response = (Message) in.readObject();
+
+                    if (response.getType() == MessageType.PLAY_RESULT) {
+                        PlayResultResponse result = (PlayResultResponse) response.getPayload();
+                        System.out.println("Play result: " + result.getMessage());
+                        System.out.println("Payout: " + result.getPayout());
+                        System.out.println("New balance: " + result.getNewBalance());
+                        System.out.println("Win: " + result.isWin());
                     } else {
                         System.out.println("[MASTER RESPONSE]: " + response.getPayload());
                     }

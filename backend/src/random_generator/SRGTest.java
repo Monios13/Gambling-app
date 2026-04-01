@@ -1,5 +1,7 @@
 package random_generator;
 import shared.Message;
+import shared.MessageSource;
+import shared.MessageType;
 import java.io.*;
 import java.net.*;
 
@@ -10,7 +12,7 @@ public class SRGTest {
              ObjectInputStream in = new ObjectInputStream(s.getInputStream())) {
             
             System.out.println("Connecting to SRG on port 5000...");
-            out.writeObject(new Message("RANDOM_REQUEST", "testSecret123"));
+            out.writeObject(new Message(MessageType.RANDOM_REQUEST, MessageSource.WORKER, "testSecret123"));
             out.flush();
 
             Message response = (Message) in.readObject();

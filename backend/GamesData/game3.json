@@ -1,0 +1,12 @@
+{
+    "gameName": "Desert Storm",
+    "providerName": "BetaSlot",
+    "stars": 4,
+    "noOfVotes": 210,
+    "gameLogo": "logos/desert.png",
+    "minBet": 1.0,
+    "maxBet": 50.0,
+    "riskLevel": "medium",
+    "hashKey": "Med_Risk_72*Kq_V2",
+    "_comment1" : "shared secret key"
+}

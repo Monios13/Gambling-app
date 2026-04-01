@@ -29,6 +29,8 @@ public enum MessageType {
     // Worker -> Master
     SEARCH_RESULT_PARTIAL,
     PLAY_RESULT,
+    REPLICATE_GAME,
+    LOGO_RESPONSE,
 
     // Generic responses
     ACK,

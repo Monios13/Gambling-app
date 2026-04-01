@@ -1,0 +1,12 @@
+{
+    "gameName": "Ocean Breeze",
+    "providerName": "AlphaGames",
+    "stars": 3,
+    "noOfVotes": 85,
+    "gameLogo": "logos/ocean.png",
+    "minBet": 0.2,
+    "maxBet": 20.0,
+    "riskLevel": "low",
+    "hashKey": "Blue_Wave_88#Zq",
+    "_comment1" : "shared secret key"
+}

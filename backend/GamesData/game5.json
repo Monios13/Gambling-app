@@ -1,0 +1,12 @@
+{
+    "gameName": "Neon Nights",
+    "providerName": "GammaPlay",
+    "stars": 5,
+    "noOfVotes": 340,
+    "gameLogo": "logos/neon.png",
+    "minBet": 3.0,
+    "maxBet": 150.0,
+    "riskLevel": "medium",
+    "hashKey": "N3on_Flash_99*X",
+    "_comment1" : "shared secret key"
+}

@@ -1,0 +1,12 @@
+{
+    "gameName": "Space Odyssey",
+    "providerName": "DeltaLuck",
+    "stars": 4,
+    "noOfVotes": 190,
+    "gameLogo": "logos/space.png",
+    "minBet": 20.0,
+    "maxBet": 2000.0,
+    "riskLevel": "high",
+    "hashKey": "Void_Infinity_@2026",
+    "_comment1" : "shared secret key"
+}

@@ -9,6 +9,12 @@ public class PlayRequest implements Serializable {
 
     public PlayRequest() {}
 
+    public PlayRequest(String playerId, String gameName, double amount) {
+        this.playerId = playerId;
+        this.gameName = gameName;
+        this.amount = amount;
+    }
+
     public String getPlayerId() {
         return playerId;
     }

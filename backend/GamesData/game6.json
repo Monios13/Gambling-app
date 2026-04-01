@@ -1,0 +1,12 @@
+{
+    "gameName": "Volcano Gold",
+    "providerName": "GammaPlay",
+    "stars": 5,
+    "noOfVotes": 500,
+    "gameLogo": "logos/volcano.png",
+    "minBet": 5.0,
+    "maxBet": 500.0,
+    "riskLevel": "high",
+    "hashKey": "Hi_Stakes_999@!_SRG",
+    "_comment1" : "shared secret key"
+}

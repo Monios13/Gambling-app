@@ -1,0 +1,12 @@
+{
+    "gameName": "Dragon's Lair",
+    "providerName": "DeltaLuck",
+    "stars": 4,
+    "noOfVotes": 275,
+    "gameLogo": "logos/dragon.png",
+    "minBet": 10.0,
+    "maxBet": 1000.0,
+    "riskLevel": "high",
+    "hashKey": "Fire_Breath_#777",
+    "_comment1" : "shared secret key"
+}
