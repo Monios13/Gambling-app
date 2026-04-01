@@ -1,6 +1,7 @@
 package shared;
 
 import java.io.Serializable;
+import java.util.Objects;
 
 public class SearchRequest implements Serializable {
     private String playerId;
@@ -40,5 +41,21 @@ public class SearchRequest implements Serializable {
 
     public void setBetCategory(BetCategory betCategory) {
         this.betCategory = betCategory;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof SearchRequest)) return false;
+        SearchRequest that = (SearchRequest) o;
+        return Objects.equals(playerId, that.playerId)
+                && Objects.equals(minStars, that.minStars)
+                && riskLevel == that.riskLevel
+                && betCategory == that.betCategory;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(playerId, minStars, riskLevel, betCategory);
     }
 }

@@ -1,15 +1,19 @@
 package dummy_client;
 
+import shared.ErrorResponse;
+import shared.GameSummary;
 import shared.Message;
 import shared.MessageSource;
 import shared.MessageType;
 import shared.PlayRequest;
 import shared.PlayResultResponse;
 import shared.SearchRequest;
+import shared.SearchResultResponse;
 
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
+import java.util.List;
 import java.util.Scanner;
 
 public class DummyPlayerClient {
@@ -66,22 +70,55 @@ public class DummyPlayerClient {
                     out.writeObject(requestMessage);
                     out.flush();
 
-                    Message response = (Message) in.readObject();
-
-                    if (response.getType() == MessageType.PLAY_RESULT) {
-                        PlayResultResponse result = (PlayResultResponse) response.getPayload();
-                        System.out.println("Play result: " + result.getMessage());
-                        System.out.println("Payout: " + result.getPayout());
-                        System.out.println("New balance: " + result.getNewBalance());
-                        System.out.println("Win: " + result.isWin());
-                    } else {
-                        System.out.println("[MASTER RESPONSE]: " + response.getPayload());
-                    }
+                    Object response = in.readObject();
+                    printResponse(response);
 
                 } catch (Exception e) {
                     System.out.println("Error connecting to Master: " + e.getMessage());
                 }
             }
         }
+    }
+
+    private static void printResponse(Object response) {
+        if (response instanceof Message) {
+            Message message = (Message) response;
+            if (message.getType() == MessageType.PLAY_RESULT) {
+                PlayResultResponse result = (PlayResultResponse) message.getPayload();
+                System.out.println("Play result: " + result.getMessage());
+                System.out.println("Payout: " + result.getPayout());
+                System.out.println("New balance: " + result.getNewBalance());
+                System.out.println("Win: " + result.isWin());
+                return;
+            }
+            System.out.println("[MASTER RESPONSE]: " + message.getPayload());
+            return;
+        }
+
+        if (response instanceof SearchResultResponse) {
+            SearchResultResponse searchResult = (SearchResultResponse) response;
+            List<GameSummary> games = searchResult.getGames();
+            if (games == null || games.isEmpty()) {
+                System.out.println("No games found.");
+                return;
+            }
+
+            System.out.println("Found games:");
+            for (GameSummary game : games) {
+                System.out.println("- " + game.getGameName()
+                        + " | stars=" + game.getStars()
+                        + " | risk=" + game.getRiskLevel()
+                        + " | bet=" + game.getBetCategory());
+            }
+            return;
+        }
+
+        if (response instanceof ErrorResponse) {
+            ErrorResponse error = (ErrorResponse) response;
+            System.out.println("[ERROR] " + error.getErrorCode() + ": " + error.getMessage());
+            return;
+        }
+
+        System.out.println(String.valueOf(response));
     }
 }

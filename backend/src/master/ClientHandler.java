@@ -143,26 +143,21 @@ public class ClientHandler implements Runnable {
     }
 
     private Object handleSearch(SearchRequest req) {
-        int n = workers.size();
+        int reachableWorkers = 0;
 
-        List<Thread> mapThreads = new ArrayList<>();
         for (WorkerInfo w : workers) {
-            Thread t = new Thread(() -> {
-                Message searchMsg = new Message(MessageType.SEARCH_LOCAL, MessageSource.MASTER, req);
-                forwardToWorker(w, searchMsg);
-            }, "map-worker-" + w.getWorkerId());
-            mapThreads.add(t);
-            t.start();
-        }
-        for (Thread t : mapThreads) {
-            try {
-                t.join();
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
+            Message searchMsg = new Message(MessageType.SEARCH_LOCAL, MessageSource.MASTER, req);
+            Object reply = forwardToWorker(w, searchMsg);
+            if (!(reply instanceof ErrorResponse)) {
+                reachableWorkers++;
             }
         }
 
-        ReduceSearchRequest reduceReq = new ReduceSearchRequest(req, n);
+        if (reachableWorkers == 0) {
+            return new SearchResultResponse(Collections.emptyList());
+        }
+
+        ReduceSearchRequest reduceReq = new ReduceSearchRequest(req, reachableWorkers);
         Message reduceMsg = new Message(MessageType.SEARCH_GAMES, MessageSource.MASTER, reduceReq);
         return forwardToReducer(reduceMsg);
     }
