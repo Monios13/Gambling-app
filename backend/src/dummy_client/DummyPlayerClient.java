@@ -7,8 +7,11 @@ import shared.MessageSource;
 import shared.MessageType;
 import shared.PlayRequest;
 import shared.PlayResultResponse;
+import shared.RateGameRequest;
 import shared.SearchRequest;
 import shared.SearchResultResponse;
+import shared.BetCategory;
+import shared.RiskLevel;
 
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
@@ -26,8 +29,10 @@ public class DummyPlayerClient {
             while (true) {
                 System.out.println("\n--- Dummy Player Menu ---");
                 System.out.println("1. Ping master");
-                System.out.println("2. Search games");
+                System.out.println("2. Search all games");
                 System.out.println("3. Play game");
+                System.out.println("4. Search by filters");
+                System.out.println("5. Game voting");
                 System.out.println("0. Exit");
                 System.out.print("Choice: ");
 
@@ -57,6 +62,22 @@ public class DummyPlayerClient {
 
                         PlayRequest preq = new PlayRequest(playerId, gameName, bet);
                         requestMessage = new Message(MessageType.PLAY_GAME, MessageSource.PLAYER, preq);
+                        break;
+                    case 4:
+                        try {
+                            requestMessage = new Message(MessageType.SEARCH_GAMES, MessageSource.PLAYER, readSearchFilters(scanner));
+                        } catch (IllegalArgumentException e) {
+                            System.out.println("[INPUT ERROR] " + e.getMessage());
+                            continue;
+                        }
+                        break;
+                    case 5:
+                        try {
+                            requestMessage = new Message(MessageType.RATE_GAME, MessageSource.PLAYER, readRateGameRequest(scanner));
+                        } catch (IllegalArgumentException e) {
+                            System.out.println("[INPUT ERROR] " + e.getMessage());
+                            continue;
+                        }
                         break;
                     default:
                         System.out.println("Invalid choice");
@@ -106,9 +127,12 @@ public class DummyPlayerClient {
             System.out.println("Found games:");
             for (GameSummary game : games) {
                 System.out.println("- " + game.getGameName()
+                        + " | provider=" + game.getProviderName()
                         + " | stars=" + game.getStars()
                         + " | risk=" + game.getRiskLevel()
-                        + " | bet=" + game.getBetCategory());
+                        + " | bet=" + game.getBetCategory()
+                        + " | minBet=" + game.getMinBet()
+                        + " | maxBet=" + game.getMaxBet());
             }
             return;
         }
@@ -120,5 +144,88 @@ public class DummyPlayerClient {
         }
 
         System.out.println(String.valueOf(response));
+    }
+
+    private static SearchRequest readSearchFilters(Scanner scanner) {
+        SearchRequest request = new SearchRequest();
+
+        System.out.print("Minimum stars/popularity (empty for no filter): ");
+        String minStarsInput = scanner.nextLine().trim();
+        if (!minStarsInput.isEmpty()) {
+            request.setMinStars(Double.parseDouble(minStarsInput));
+        }
+
+        System.out.println("Bet category filter: Enter=none, 1=$, 2=$$, 3=$$$");
+        System.out.print("Choice: ");
+        String betCategoryInput = scanner.nextLine().trim();
+        if (!betCategoryInput.isEmpty()) {
+            request.setBetCategory(parseBetCategory(betCategoryInput));
+        }
+
+        System.out.println("Risk level filter: Enter=none, 1=LOW, 2=MEDIUM, 3=HIGH");
+        System.out.print("Choice: ");
+        String riskLevelInput = scanner.nextLine().trim();
+        if (!riskLevelInput.isEmpty()) {
+            request.setRiskLevel(parseRiskLevel(riskLevelInput));
+        }
+
+        return request;
+    }
+
+    private static RateGameRequest readRateGameRequest(Scanner scanner) {
+        RateGameRequest request = new RateGameRequest();
+
+        System.out.print("Player ID: ");
+        request.setPlayerId(scanner.nextLine().trim());
+
+        System.out.print("Game name: ");
+        request.setGameName(scanner.nextLine().trim());
+
+        System.out.print("Rating (1-5): ");
+        int rating = Integer.parseInt(scanner.nextLine().trim());
+        if (rating < 1 || rating > 5) {
+            throw new IllegalArgumentException("Rating must be between 1 and 5.");
+        }
+        request.setRating(rating);
+
+        return request;
+    }
+
+    private static BetCategory parseBetCategory(String value) {
+        switch (value.trim().toUpperCase()) {
+            case "1":
+            case "$":
+            case "LOW":
+            case "LOW_BET":
+                return BetCategory.LOW_BET;
+            case "2":
+            case "$$":
+            case "MEDIUM":
+            case "MEDIUM_BET":
+                return BetCategory.MEDIUM_BET;
+            case "3":
+            case "$$$":
+            case "HIGH":
+            case "HIGH_BET":
+                return BetCategory.HIGH_BET;
+            default:
+                throw new IllegalArgumentException("Bet category must be 1/2/3, $, $$, $$$, LOW, MEDIUM or HIGH.");
+        }
+    }
+
+    private static RiskLevel parseRiskLevel(String value) {
+        switch (value.trim().toUpperCase()) {
+            case "1":
+            case "LOW":
+                return RiskLevel.LOW;
+            case "2":
+            case "MEDIUM":
+                return RiskLevel.MEDIUM;
+            case "3":
+            case "HIGH":
+                return RiskLevel.HIGH;
+            default:
+                throw new IllegalArgumentException("Risk level must be 1/2/3 or LOW/MEDIUM/HIGH.");
+        }
     }
 }

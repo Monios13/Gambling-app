@@ -39,12 +39,32 @@ public class ReducerHandler implements Runnable {
                     break;
                 }
 
+                case STATS_RESULT_PARTIAL: {
+                    MapStatsResult result = (MapStatsResult) msg.getPayload();
+                    aggregator.addStatsPartial(result.getJobId(), result.getStats());
+                    out.writeObject(new AckResponse(true, "Stats partial received."));
+                    out.flush();
+                    break;
+                }
+
                 // Master triggers the Reduce phase
                 case SEARCH_GAMES: {
                     ReduceSearchRequest req = (ReduceSearchRequest) msg.getPayload();
                     String jobId = "search:" + req.getOriginalRequest().hashCode();
                     List<GameSummary> merged = aggregator.reduceSearch(jobId, req.getExpectedWorkers());
                     out.writeObject(new SearchResultResponse(merged));
+                    out.flush();
+                    break;
+                }
+
+                case GET_GAME_STATS:
+                case GET_PLAYER_STATS: {
+                    ReduceStatsRequest req = (ReduceStatsRequest) msg.getPayload();
+                    StatsResponse response = new StatsResponse(
+                            msg.getType() == MessageType.GET_GAME_STATS ? "Game Stats" : "Player Stats",
+                            aggregator.reduceStats(req.getJobId(), req.getExpectedWorkers())
+                    );
+                    out.writeObject(response);
                     out.flush();
                     break;
                 }

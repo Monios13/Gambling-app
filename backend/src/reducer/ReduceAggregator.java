@@ -86,10 +86,17 @@ public class ReduceAggregator {
             }
         }
 
-        // Add a "Total" key
-        double total = merged.values().stream().mapToDouble(Double::doubleValue).sum();
-        merged.put("Total", total);
+        List<Map.Entry<String, Double>> orderedEntries = new ArrayList<>(merged.entrySet());
+        orderedEntries.sort(Map.Entry.comparingByKey(String.CASE_INSENSITIVE_ORDER));
 
-        return merged;
+        Map<String, Double> ordered = new LinkedHashMap<>();
+        for (Map.Entry<String, Double> entry : orderedEntries) {
+            ordered.put(entry.getKey(), entry.getValue());
+        }
+
+        double total = ordered.values().stream().mapToDouble(Double::doubleValue).sum();
+        ordered.put("Total", total);
+
+        return ordered;
     }
 }

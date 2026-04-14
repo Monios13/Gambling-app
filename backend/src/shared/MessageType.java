@@ -5,6 +5,9 @@ public enum MessageType {
     ADD_GAME,
     REMOVE_GAME,
     EDIT_GAME_RISK,
+    EDIT_GAME_SETTINGS,
+    GET_GAME_STATS,
+    GET_PLAYER_STATS,
 
     // Player/Dummy Client -> Master
     SEARCH_GAMES,
@@ -16,9 +19,12 @@ public enum MessageType {
     STORE_GAME,
     REMOVE_GAME_LOCAL,
     UPDATE_GAME_RISK_LOCAL,
+    UPDATE_GAME_SETTINGS_LOCAL,
     SEARCH_LOCAL,
     PLAY_LOCAL,
     RATE_GAME_LOCAL,
+    GET_GAME_STATS_LOCAL,
+    GET_PLAYER_STATS_LOCAL,
 
     // Worker -> SRG
     RANDOM_REQUEST,
@@ -28,6 +34,7 @@ public enum MessageType {
 
     // Worker -> Master
     SEARCH_RESULT_PARTIAL,
+    STATS_RESULT_PARTIAL,
     PLAY_RESULT,
     REPLICATE_GAME,
     LOGO_RESPONSE,

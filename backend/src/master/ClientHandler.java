@@ -82,6 +82,16 @@ public class ClientHandler implements Runnable {
                         break;
                     }
 
+                    case EDIT_GAME_SETTINGS: {
+                        EditGameRequest req = (EditGameRequest) msg.getPayload();
+                        WorkerInfo target = selector.select(req.getGameName());
+                        Message workerMsg = new Message(MessageType.UPDATE_GAME_SETTINGS_LOCAL, MessageSource.MASTER, req);
+                        Object reply = forwardToWorker(target, workerMsg);
+                        out.writeObject(reply);
+                        out.flush();
+                        break;
+                    }
+
                     case SEARCH_GAMES: {
                         SearchRequest req = (SearchRequest) msg.getPayload();
                         Object reply = handleSearch(req);
@@ -114,6 +124,20 @@ public class ClientHandler implements Runnable {
                         WorkerInfo target = selector.select(req.getGameName());
                         Message workerMsg = new Message(MessageType.RATE_GAME_LOCAL, MessageSource.MASTER, req);
                         Object reply = forwardToWorker(target, workerMsg);
+                        out.writeObject(reply);
+                        out.flush();
+                        break;
+                    }
+
+                    case GET_GAME_STATS: {
+                        Object reply = handleStatsRequest(MessageType.GET_GAME_STATS_LOCAL, MessageType.GET_GAME_STATS, "game-stats");
+                        out.writeObject(reply);
+                        out.flush();
+                        break;
+                    }
+
+                    case GET_PLAYER_STATS: {
+                        Object reply = handleStatsRequest(MessageType.GET_PLAYER_STATS_LOCAL, MessageType.GET_PLAYER_STATS, "player-stats");
                         out.writeObject(reply);
                         out.flush();
                         break;
@@ -159,6 +183,30 @@ public class ClientHandler implements Runnable {
 
         ReduceSearchRequest reduceReq = new ReduceSearchRequest(req, reachableWorkers);
         Message reduceMsg = new Message(MessageType.SEARCH_GAMES, MessageSource.MASTER, reduceReq);
+        return forwardToReducer(reduceMsg);
+    }
+
+    private Object handleStatsRequest(MessageType workerRequestType, MessageType reducerRequestType, String jobPrefix) {
+        int reachableWorkers = 0;
+        String jobId = jobPrefix + ":" + System.nanoTime();
+
+        for (WorkerInfo worker : workers) {
+            Message statsMsg = new Message(workerRequestType, MessageSource.MASTER, jobId);
+            Object reply = forwardToWorker(worker, statsMsg);
+            if (!(reply instanceof ErrorResponse)) {
+                reachableWorkers++;
+            }
+        }
+
+        if (reachableWorkers == 0) {
+            return new StatsResponse(
+                    reducerRequestType == MessageType.GET_GAME_STATS ? "Game Stats" : "Player Stats",
+                    Collections.emptyMap()
+            );
+        }
+
+        ReduceStatsRequest reduceReq = new ReduceStatsRequest(jobId, reachableWorkers);
+        Message reduceMsg = new Message(reducerRequestType, MessageSource.MASTER, reduceReq);
         return forwardToReducer(reduceMsg);
     }
 

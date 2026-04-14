@@ -7,7 +7,7 @@ public class Game implements Serializable {
 
     private String gameName;
     private String providerName;
-    private int stars;
+    private double stars;
     private int noOfVotes;
     private String gameLogo;
     private double minBet;
@@ -22,7 +22,7 @@ public class Game implements Serializable {
 
     public Game() {}
 
-    public Game(String gameName, String providerName, int stars, int noOfVotes,
+    public Game(String gameName, String providerName, double stars, int noOfVotes,
                 String gameLogo, double minBet, double maxBet, String riskLevel, String hashKey) {
         this.gameName = gameName;
         this.providerName = providerName;
@@ -69,7 +69,7 @@ public class Game implements Serializable {
     }
 
     public String getGameName() { return gameName; }
-    public int getStars() { return stars; }
+    public double getStars() { return stars; }
     public String getProviderName() { return providerName; }
     public int getNoOfVotes() { return noOfVotes; }
     public String getGameLogo() { return gameLogo; }
@@ -82,7 +82,7 @@ public class Game implements Serializable {
 
     public void setGameName(String gameName) { this.gameName = gameName; }
     public void setProviderName(String providerName) { this.providerName = providerName; }
-    public void setStars(int stars) { this.stars = stars; }
+    public void setStars(double stars) { this.stars = stars; }
     public void setNoOfVotes(int noOfVotes) { this.noOfVotes = noOfVotes; }
     public void setGameLogo(String gameLogo) { this.gameLogo = gameLogo; }
     public void setMinBet(double minBet) { this.minBet = minBet; }
@@ -102,6 +102,12 @@ public class Game implements Serializable {
     public synchronized void updateRiskLevel(String newRiskLevel) {
         this.riskLevel = newRiskLevel;
         recalculateDerivedFields();
+    }
+
+    public synchronized void applyRating(int rating) {
+        double totalStars = this.stars * this.noOfVotes;
+        this.noOfVotes++;
+        this.stars = (totalStars + rating) / this.noOfVotes;
     }
 
     @Override

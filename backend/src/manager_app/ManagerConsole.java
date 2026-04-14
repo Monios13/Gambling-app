@@ -1,13 +1,15 @@
 package manager_app;
 
-import com.google.gson.Gson;
 import shared.AckResponse;
+import shared.EditGameRequest;
 import shared.ErrorResponse;
 import shared.Game;
 import shared.Message;
 import shared.MessageSource;
 import shared.MessageType;
 import shared.RemoveGameRequest;
+import shared.RiskLevel;
+import shared.StatsResponse;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -22,8 +24,6 @@ import java.util.List;
 import java.util.Scanner;
 
 public class ManagerConsole {
-
-    private static final Gson GSON = new Gson();
     private static final Path DEFAULT_GAMES_DIR = Paths.get("backend", "GamesData");
 
     public static void main(String[] args) throws Exception {
@@ -36,6 +36,9 @@ public class ManagerConsole {
                 System.out.println("1. Add game from JSON text");
                 System.out.println("2. Remove game");
                 System.out.println("3. Load all JSON files from backend/GamesData");
+                System.out.println("4. Game stats");
+                System.out.println("5. Player stats");
+                System.out.println("6. Edit game settings");
                 System.out.println("0. Exit");
                 System.out.print("Choice: ");
 
@@ -62,6 +65,16 @@ public class ManagerConsole {
                         break;
                     case 3:
                         loadGamesFromDirectory(host, port, DEFAULT_GAMES_DIR);
+                        break;
+                    case 4:
+                        sendRequest(host, port, new Message(MessageType.GET_GAME_STATS, MessageSource.MANAGER, null));
+                        break;
+                    case 5:
+                        sendRequest(host, port, new Message(MessageType.GET_PLAYER_STATS, MessageSource.MANAGER, null));
+                        break;
+                    case 6:
+                        EditGameRequest editRequest = readEditGameRequest(scanner);
+                        sendRequest(host, port, new Message(MessageType.EDIT_GAME_SETTINGS, MessageSource.MANAGER, editRequest));
                         break;
                     default:
                         System.out.println("Invalid choice");
@@ -120,11 +133,53 @@ public class ManagerConsole {
         }
     }
 
+    private static EditGameRequest readEditGameRequest(Scanner scanner) {
+        EditGameRequest request = new EditGameRequest();
+
+        System.out.print("Game name: ");
+        request.setGameName(scanner.nextLine().trim());
+
+        System.out.print("New RiskLevel (LOW/MEDIUM/HIGH or empty to keep current): ");
+        String riskInput = scanner.nextLine().trim();
+        if (!riskInput.isEmpty()) {
+            request.setNewRiskLevel(RiskLevel.valueOf(riskInput.toUpperCase()));
+        }
+
+        System.out.print("New minBet (empty to keep current): ");
+        String minBetInput = scanner.nextLine().trim();
+        if (!minBetInput.isEmpty()) {
+            request.setNewMinBet(Double.parseDouble(minBetInput));
+        }
+
+        System.out.print("New maxBet (empty to keep current): ");
+        String maxBetInput = scanner.nextLine().trim();
+        if (!maxBetInput.isEmpty()) {
+            request.setNewMaxBet(Double.parseDouble(maxBetInput));
+        }
+
+        if (request.getNewRiskLevel() == null && request.getNewMinBet() == null && request.getNewMaxBet() == null) {
+            throw new IllegalArgumentException("You must provide at least one field to update.");
+        }
+
+        return request;
+    }
+
     private static Game parseJsonToGame(String json) {
-        Game game = GSON.fromJson(json, Game.class);
-        if (game == null) {
+        Game game = new Game();
+        game.setGameName(extractString(json, "gameName"));
+        game.setProviderName(extractString(json, "providerName"));
+        game.setStars((int) extractNumber(json, "stars"));
+        game.setNoOfVotes((int) extractNumber(json, "noOfVotes"));
+        game.setGameLogo(extractString(json, "gameLogo"));
+        game.setMinBet(extractNumber(json, "minBet"));
+        game.setMaxBet(extractNumber(json, "maxBet"));
+        game.setRiskLevel(extractString(json, "riskLevel"));
+        game.setHashKey(extractString(json, "hashKey"));
+
+        if (game.getGameName() == null || game.getGameName().isEmpty()) {
             throw new IllegalArgumentException("Invalid game JSON.");
         }
+
         game.recalculateDerivedFields();
         return game;
     }
@@ -144,6 +199,64 @@ public class ManagerConsole {
             return error.getErrorCode() + ": " + error.getMessage();
         }
 
+        if (response instanceof StatsResponse) {
+            return formatStatsResponse((StatsResponse) response);
+        }
+
         return String.valueOf(response);
+    }
+
+    private static String formatStatsResponse(StatsResponse response) {
+        if (response.getStats() == null || response.getStats().isEmpty()) {
+            return response.getTitle() + ": no data available yet.";
+        }
+
+        StringBuilder builder = new StringBuilder();
+        builder.append(response.getTitle()).append(":\n");
+        response.getStats().forEach((key, value) ->
+                builder.append(" - ").append(key).append(": ").append(value).append('\n'));
+
+        if ("Player Stats".equals(response.getTitle())) {
+            builder.append("Note: players appear after their first play; their initial tracked value starts from 5.0 FUN.\n");
+        }
+
+        return builder.toString().trim();
+    }
+
+    private static String extractString(String json, String key) {
+        String pattern = "\"" + key + "\"";
+        int idx = json.indexOf(pattern);
+        if (idx == -1) {
+            return "";
+        }
+
+        int colon = json.indexOf(":", idx);
+        int firstQuote = json.indexOf("\"", colon + 1);
+        int secondQuote = json.indexOf("\"", firstQuote + 1);
+        if (colon == -1 || firstQuote == -1 || secondQuote == -1) {
+            return "";
+        }
+
+        return json.substring(firstQuote + 1, secondQuote).trim();
+    }
+
+    private static double extractNumber(String json, String key) {
+        String pattern = "\"" + key + "\"";
+        int idx = json.indexOf(pattern);
+        if (idx == -1) {
+            return 0.0;
+        }
+
+        int colon = json.indexOf(":", idx);
+        int comma = json.indexOf(",", colon + 1);
+        if (comma == -1) {
+            comma = json.indexOf("}", colon + 1);
+        }
+        if (colon == -1 || comma == -1) {
+            return 0.0;
+        }
+
+        String numStr = json.substring(colon + 1, comma).trim();
+        return Double.parseDouble(numStr);
     }
 }

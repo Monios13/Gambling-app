@@ -6,11 +6,15 @@ import shared.ErrorResponse;
 import shared.Game;
 import shared.GameSummary;
 import shared.MapSearchResult;
+import shared.MapStatsResult;
 import shared.Message;
 import shared.MessageSource;
 import shared.MessageType;
+import shared.EditGameRequest;
+import shared.EditRiskRequest;
 import shared.PlayRequest;
 import shared.PlayResultResponse;
+import shared.RateGameRequest;
 import shared.RemoveGameRequest;
 import shared.RiskLevel;
 import shared.SearchRequest;
@@ -54,6 +58,21 @@ public class WorkerThread extends Thread {
                     break;
                 case SEARCH_LOCAL:
                     executeSearch(msg, out);
+                    break;
+                case UPDATE_GAME_RISK_LOCAL:
+                    updateGameRisk(msg, out);
+                    break;
+                case UPDATE_GAME_SETTINGS_LOCAL:
+                    updateGameSettings(msg, out);
+                    break;
+                case GET_GAME_STATS_LOCAL:
+                    sendGameStats(msg, out);
+                    break;
+                case GET_PLAYER_STATS_LOCAL:
+                    sendPlayerStats(msg, out);
+                    break;
+                case RATE_GAME_LOCAL:
+                    rateGame(msg, out);
                     break;
                 default:
                     out.writeObject(new ErrorResponse("UNSUPPORTED", "Worker unsupported type: " + msg.getType()));
@@ -134,8 +153,27 @@ public class WorkerThread extends Thread {
                 return;
             }
 
-            int randomNumber = buffer.take();
             double betAmount = request.getAmount();
+
+            if (betAmount < game.getMinBet()) {
+                out.writeObject(new ErrorResponse(
+                        "BET_BELOW_MIN",
+                        "Bet amount " + betAmount + " is below minBet " + game.getMinBet() + " for game " + game.getGameName() + "."
+                ));
+                out.flush();
+                return;
+            }
+
+            if (betAmount > game.getMaxBet()) {
+                out.writeObject(new ErrorResponse(
+                        "BET_ABOVE_MAX",
+                        "Bet amount " + betAmount + " is above maxBet " + game.getMaxBet() + " for game " + game.getGameName() + "."
+                ));
+                out.flush();
+                return;
+            }
+
+            int randomNumber = buffer.take();
 
             if (randomNumber % 100 == 0) {
                 winAmount = betAmount * game.getJackpot();
@@ -153,7 +191,7 @@ public class WorkerThread extends Thread {
         double playerDelta = winAmount - request.getAmount();
         double newBalance;
         synchronized (WorkerMain.playerStats) {
-            double currentStats = WorkerMain.playerStats.getOrDefault(request.getPlayerId(), 0.0);
+            double currentStats = WorkerMain.playerStats.getOrDefault(request.getPlayerId(), 5.0);
             newBalance = currentStats + playerDelta;
             WorkerMain.playerStats.put(request.getPlayerId(), newBalance);
         }
@@ -205,6 +243,154 @@ public class WorkerThread extends Thread {
         }
     }
 
+    private void updateGameSettings(Message msg, ObjectOutputStream out) throws IOException {
+        EditGameRequest request = (EditGameRequest) msg.getPayload();
+        Game game;
+
+        synchronized (WorkerMain.gamesStorage) {
+            game = WorkerMain.gamesStorage.get(request.getGameName());
+        }
+
+        if (game == null) {
+            out.writeObject(new ErrorResponse("GAME_NOT_FOUND", "Game not found on this worker."));
+            out.flush();
+            return;
+        }
+
+        Double newMinBet = request.getNewMinBet();
+        Double newMaxBet = request.getNewMaxBet();
+        if (newMinBet != null && newMinBet < 0) {
+            out.writeObject(new ErrorResponse("INVALID_MIN_BET", "minBet cannot be negative."));
+            out.flush();
+            return;
+        }
+        if (newMaxBet != null && newMaxBet < 0) {
+            out.writeObject(new ErrorResponse("INVALID_MAX_BET", "maxBet cannot be negative."));
+            out.flush();
+            return;
+        }
+
+        synchronized (game) {
+            double effectiveMin = newMinBet != null ? newMinBet : game.getMinBet();
+            double effectiveMax = newMaxBet != null ? newMaxBet : game.getMaxBet();
+            if (effectiveMin > effectiveMax) {
+                out.writeObject(new ErrorResponse("INVALID_BET_RANGE", "minBet cannot be greater than maxBet."));
+                out.flush();
+                return;
+            }
+
+            if (request.getNewRiskLevel() != null) {
+                game.setRiskLevel(request.getNewRiskLevel().name());
+            }
+            if (newMinBet != null) {
+                game.setMinBet(newMinBet);
+            }
+            if (newMaxBet != null) {
+                game.setMaxBet(newMaxBet);
+            }
+            game.recalculateDerivedFields();
+        }
+
+        out.writeObject(new AckResponse(true, "Game settings updated successfully."));
+        out.flush();
+    }
+
+    private void updateGameRisk(Message msg, ObjectOutputStream out) throws IOException {
+        EditRiskRequest request = (EditRiskRequest) msg.getPayload();
+        EditGameRequest editGameRequest = new EditGameRequest();
+        editGameRequest.setGameName(request.getGameName());
+        editGameRequest.setNewRiskLevel(request.getNewRiskLevel());
+        updateGameSettings(new Message(MessageType.UPDATE_GAME_SETTINGS_LOCAL, MessageSource.MASTER, editGameRequest), out);
+    }
+
+    private void sendGameStats(Message msg, ObjectOutputStream out) throws IOException {
+        String jobId = (String) msg.getPayload();
+        java.util.Map<String, Double> stats = new java.util.LinkedHashMap<>();
+
+        synchronized (WorkerMain.gamesStorage) {
+            for (Game game : WorkerMain.gamesStorage.values()) {
+                synchronized (game) {
+                    stats.put(game.getGameName(), game.getTotalProfitLoss());
+                }
+            }
+        }
+
+        pushStatsPartial(jobId, stats, out);
+    }
+
+    private void sendPlayerStats(Message msg, ObjectOutputStream out) throws IOException {
+        String jobId = (String) msg.getPayload();
+        java.util.Map<String, Double> stats = new java.util.LinkedHashMap<>();
+
+        synchronized (WorkerMain.playerStats) {
+            stats.putAll(WorkerMain.playerStats);
+        }
+
+        pushStatsPartial(jobId, stats, out);
+    }
+
+    private void rateGame(Message msg, ObjectOutputStream out) throws IOException {
+        RateGameRequest request = (RateGameRequest) msg.getPayload();
+        if (request.getRating() < 1 || request.getRating() > 5) {
+            out.writeObject(new ErrorResponse("INVALID_RATING", "Rating must be between 1 and 5."));
+            out.flush();
+            return;
+        }
+
+        Game game;
+        synchronized (WorkerMain.gamesStorage) {
+            game = WorkerMain.gamesStorage.get(request.getGameName());
+        }
+
+        if (game == null) {
+            out.writeObject(new ErrorResponse("GAME_NOT_FOUND", "Game not found on this worker."));
+            out.flush();
+            return;
+        }
+
+        double updatedStars;
+        int totalVotes;
+        synchronized (game) {
+            if (!game.isActive()) {
+                out.writeObject(new ErrorResponse("GAME_INACTIVE", "Game is inactive."));
+                out.flush();
+                return;
+            }
+            game.applyRating(request.getRating());
+            updatedStars = game.getStars();
+            totalVotes = game.getNoOfVotes();
+        }
+
+        out.writeObject(new AckResponse(
+                true,
+                String.format("Rating saved. New average for %s: %.2f stars (%d votes).",
+                        request.getGameName(), updatedStars, totalVotes)
+        ));
+        out.flush();
+    }
+
+    private void pushStatsPartial(String jobId, java.util.Map<String, Double> stats, ObjectOutputStream out) throws IOException {
+        String reducerHost = "localhost";
+        int reducerPort = 8082;
+
+        try (Socket reducerSocket = new Socket(reducerHost, reducerPort);
+             ObjectOutputStream reducerOut = new ObjectOutputStream(reducerSocket.getOutputStream());
+             ObjectInputStream reducerIn = new ObjectInputStream(reducerSocket.getInputStream())) {
+
+            MapStatsResult partial = new MapStatsResult(jobId, stats);
+            Message statsMsg = new Message(MessageType.STATS_RESULT_PARTIAL, MessageSource.WORKER, partial);
+            reducerOut.writeObject(statsMsg);
+            reducerOut.flush();
+            reducerIn.readObject();
+
+            out.writeObject(new AckResponse(true, "Stats partial sent to reducer."));
+            out.flush();
+        } catch (Exception e) {
+            out.writeObject(new ErrorResponse("REDUCER_UNAVAILABLE", "Error connecting to Reducer: " + e.getMessage()));
+            out.flush();
+        }
+    }
+
     private boolean matchesFilters(Game game, SearchRequest filters) {
         synchronized (game) {
             if (!game.isActive()) return false;
@@ -232,6 +418,8 @@ public class WorkerThread extends Thread {
         synchronized (game) {
             GameSummary summary = new GameSummary();
             summary.setGameName(game.getGameName());
+            summary.setProviderName(game.getProviderName());
+            summary.setGameLogo(game.getGameLogo());
             summary.setMinBet(game.getMinBet());
             summary.setMaxBet(game.getMaxBet());
             summary.setStars(game.getStars());
