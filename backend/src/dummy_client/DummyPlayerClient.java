@@ -1,5 +1,6 @@
 package dummy_client;
 
+import shared.AckResponse;
 import shared.ErrorResponse;
 import shared.GameSummary;
 import shared.Message;
@@ -141,6 +142,12 @@ public class DummyPlayerClient {
         if (response instanceof ErrorResponse) {
             ErrorResponse error = (ErrorResponse) response;
             System.out.println("[ERROR] " + error.getErrorCode() + ": " + error.getMessage());
+            return;
+        }
+
+        if (response instanceof AckResponse) {
+            AckResponse ack = (AckResponse) response;
+            System.out.println(ack.getMessage());
             return;
         }
 
