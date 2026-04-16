@@ -16,6 +16,7 @@ import shared.RiskLevel;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
+import java.util.InputMismatchException;
 import java.util.List;
 import java.util.Scanner;
 
@@ -66,7 +67,7 @@ public class DummyPlayerClient {
                     case 4:
                         try {
                             requestMessage = new Message(MessageType.SEARCH_GAMES, MessageSource.PLAYER, readSearchFilters(scanner));
-                        } catch (IllegalArgumentException e) {
+                        } catch (IllegalArgumentException | InputMismatchException e) {
                             System.out.println("[INPUT ERROR] " + e.getMessage());
                             continue;
                         }
@@ -128,7 +129,7 @@ public class DummyPlayerClient {
             for (GameSummary game : games) {
                 System.out.println("- " + game.getGameName()
                         + " | provider=" + game.getProviderName()
-                        + " | stars=" + game.getStars()
+                        + " | stars=" + String.format("%.2f", game.getStars())
                         + " | risk=" + game.getRiskLevel()
                         + " | bet=" + game.getBetCategory()
                         + " | minBet=" + game.getMinBet()
@@ -149,25 +150,9 @@ public class DummyPlayerClient {
     private static SearchRequest readSearchFilters(Scanner scanner) {
         SearchRequest request = new SearchRequest();
 
-        System.out.print("Minimum stars/popularity (empty for no filter): ");
-        String minStarsInput = scanner.nextLine().trim();
-        if (!minStarsInput.isEmpty()) {
-            request.setMinStars(Double.parseDouble(minStarsInput));
-        }
-
-        System.out.println("Bet category filter: Enter=none, 1=$, 2=$$, 3=$$$");
-        System.out.print("Choice: ");
-        String betCategoryInput = scanner.nextLine().trim();
-        if (!betCategoryInput.isEmpty()) {
-            request.setBetCategory(parseBetCategory(betCategoryInput));
-        }
-
-        System.out.println("Risk level filter: Enter=none, 1=LOW, 2=MEDIUM, 3=HIGH");
-        System.out.print("Choice: ");
-        String riskLevelInput = scanner.nextLine().trim();
-        if (!riskLevelInput.isEmpty()) {
-            request.setRiskLevel(parseRiskLevel(riskLevelInput));
-        }
+        request.setMinStars(readOptionalMinStars(scanner));
+        request.setBetCategory(readOptionalBetCategory(scanner));
+        request.setRiskLevel(readOptionalRiskLevel(scanner));
 
         return request;
     }
@@ -226,6 +211,67 @@ public class DummyPlayerClient {
                 return RiskLevel.HIGH;
             default:
                 throw new IllegalArgumentException("Risk level must be 1/2/3 or LOW/MEDIUM/HIGH.");
+        }
+    }
+
+    private static Double readOptionalMinStars(Scanner scanner) {
+        while (true) {
+            System.out.println("Minimum stars/popularity 0-5 filter: ");
+            System.out.println("    Enter = no filter");
+            System.out.print("Rating: ");
+            String input = scanner.nextLine().trim();
+            if (input.isEmpty()) {
+                return null;
+            }
+
+            try {
+                double value = Double.parseDouble(input);
+                if (value < 0.0 || value > 5.0) {
+                    System.out.println("[INPUT ERROR] Stars filter must be between 0 and 5.");
+                    continue;
+                }
+                return value;
+            } catch (NumberFormatException e) {
+                System.out.println("[INPUT ERROR] Give a numeric value for stars, for example 3.5.");
+            }
+        }
+    }
+
+    private static BetCategory readOptionalBetCategory(Scanner scanner) {
+        while (true) {
+            System.out.println("Bet category filter:");
+            System.out.println("  Enter = no filter");
+            System.out.println("  1 = $, 2 = $$, 3 = $$$");
+            System.out.print("Choice: ");
+            String input = scanner.nextLine().trim();
+            if (input.isEmpty()) {
+                return null;
+            }
+
+            try {
+                return parseBetCategory(input);
+            } catch (IllegalArgumentException e) {
+                System.out.println("[INPUT ERROR] " + e.getMessage());
+            }
+        }
+    }
+
+    private static RiskLevel readOptionalRiskLevel(Scanner scanner) {
+        while (true) {
+            System.out.println("Risk level filter:");
+            System.out.println("  Enter = no filter");
+            System.out.println("  1 = LOW, 2 = MEDIUM, 3 = HIGH");
+            System.out.print("Choice: ");
+            String input = scanner.nextLine().trim();
+            if (input.isEmpty()) {
+                return null;
+            }
+
+            try {
+                return parseRiskLevel(input);
+            } catch (IllegalArgumentException e) {
+                System.out.println("[INPUT ERROR] " + e.getMessage());
+            }
         }
     }
 }

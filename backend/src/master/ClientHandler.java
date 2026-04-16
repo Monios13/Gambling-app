@@ -167,23 +167,21 @@ public class ClientHandler implements Runnable {
     }
 
     private Object handleSearch(SearchRequest req) {
-        int reachableWorkers = 0;
+        List<GameSummary> merged = new ArrayList<>();
 
         for (WorkerInfo w : workers) {
             Message searchMsg = new Message(MessageType.SEARCH_LOCAL, MessageSource.MASTER, req);
             Object reply = forwardToWorker(w, searchMsg);
-            if (!(reply instanceof ErrorResponse)) {
-                reachableWorkers++;
+            if (reply instanceof SearchResultResponse) {
+                SearchResultResponse result = (SearchResultResponse) reply;
+                if (result.getGames() != null) {
+                    merged.addAll(result.getGames());
+                }
             }
         }
 
-        if (reachableWorkers == 0) {
-            return new SearchResultResponse(Collections.emptyList());
-        }
-
-        ReduceSearchRequest reduceReq = new ReduceSearchRequest(req, reachableWorkers);
-        Message reduceMsg = new Message(MessageType.SEARCH_GAMES, MessageSource.MASTER, reduceReq);
-        return forwardToReducer(reduceMsg);
+        merged.sort(Comparator.comparingDouble(GameSummary::getStars).reversed());
+        return new SearchResultResponse(merged);
     }
 
     private Object handleStatsRequest(MessageType workerRequestType, MessageType reducerRequestType, String jobPrefix) {

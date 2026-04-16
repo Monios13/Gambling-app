@@ -5,7 +5,6 @@ import shared.BetCategory;
 import shared.ErrorResponse;
 import shared.Game;
 import shared.GameSummary;
-import shared.MapSearchResult;
 import shared.MapStatsResult;
 import shared.Message;
 import shared.MessageSource;
@@ -18,6 +17,7 @@ import shared.RateGameRequest;
 import shared.RemoveGameRequest;
 import shared.RiskLevel;
 import shared.SearchRequest;
+import shared.SearchResultResponse;
 
 import java.io.File;
 import java.io.IOException;
@@ -26,6 +26,7 @@ import java.io.ObjectOutputStream;
 import java.net.Socket;
 import java.nio.file.Files;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 
 public class WorkerThread extends Thread {
@@ -221,26 +222,9 @@ public class WorkerThread extends Thread {
             }
         }
 
-        String reducerHost = "localhost";
-        int reducerPort = 8082;
-        String jobId = "search:" + filters.hashCode();
-
-        try (Socket reducerSocket = new Socket(reducerHost, reducerPort);
-             ObjectOutputStream reducerOut = new ObjectOutputStream(reducerSocket.getOutputStream());
-             ObjectInputStream reducerIn = new ObjectInputStream(reducerSocket.getInputStream())) {
-
-            MapSearchResult partial = new MapSearchResult(jobId, matchedGames);
-            Message mapResult = new Message(MessageType.SEARCH_RESULT_PARTIAL, MessageSource.WORKER, partial);
-            reducerOut.writeObject(mapResult);
-            reducerOut.flush();
-            reducerIn.readObject();
-
-            out.writeObject(new AckResponse(true, "Search partial sent to reducer."));
-            out.flush();
-        } catch (Exception e) {
-            out.writeObject(new ErrorResponse("REDUCER_UNAVAILABLE", "Error connecting to Reducer: " + e.getMessage()));
-            out.flush();
-        }
+        matchedGames.sort(Comparator.comparingDouble(GameSummary::getStars).reversed());
+        out.writeObject(new SearchResultResponse(matchedGames));
+        out.flush();
     }
 
     private void updateGameSettings(Message msg, ObjectOutputStream out) throws IOException {

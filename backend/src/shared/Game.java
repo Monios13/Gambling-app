@@ -104,10 +104,19 @@ public class Game implements Serializable {
         recalculateDerivedFields();
     }
 
+    public synchronized void normalizeRatingBaseline() {
+        this.stars = roundToTwoDecimals(this.stars);
+        this.noOfVotes = this.stars > 0.0 ? 1 : 0;
+    }
+
     public synchronized void applyRating(int rating) {
         double totalStars = this.stars * this.noOfVotes;
         this.noOfVotes++;
-        this.stars = (totalStars + rating) / this.noOfVotes;
+        this.stars = roundToTwoDecimals((totalStars + rating) / this.noOfVotes);
+    }
+
+    private double roundToTwoDecimals(double value) {
+        return Math.round(value * 100.0) / 100.0;
     }
 
     @Override
