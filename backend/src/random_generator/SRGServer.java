@@ -1,26 +1,54 @@
 package random_generator;
 
-import java.net.ServerSocket;
-import java.net.Socket;
+import java.io.*;
+import java.net.*;
+import shared.Message; 
 
 public class SRGServer {
+    private static final int PORT = 5000;
+
     public static void main(String[] args) {
-        int port = 5000;
-        RandomBuffer buffer = new RandomBuffer();
+        try (ServerSocket serverSocket = new ServerSocket(PORT)) {
+            System.out.println("Secure Random Generator Server is running on port " + PORT);
 
-        // Start the Producer thread
-        new Producer(buffer).start();
-
-        try (ServerSocket serverSocket = new ServerSocket(port)) {
-            System.out.println("SRG Server started at port " + port);
-            
             while (true) {
-                // Accept new clients and start handler
-                Socket client = serverSocket.accept();
-                new SRGHandler(client, buffer).start();
+                Socket clientSocket = serverSocket.accept();
+                // Πολυνηματικότητα: Κάθε αίτημα σε νέο Thread
+                new Thread(new ClientTask(clientSocket)).start();
             }
-        } catch (Exception e) {
+        } catch (IOException e) {
             e.printStackTrace();
+        }
+    }
+
+    private static class ClientTask implements Runnable {
+        private final Socket socket;
+
+        public ClientTask(Socket socket) { this.socket = socket; }
+
+        @Override
+        public void run() {
+            try (ObjectInputStream in = new ObjectInputStream(socket.getInputStream());
+                 ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream())) {
+
+                // Λήψη του Message από τον Worker
+                Message request = (Message) in.readObject();
+                String hashKey = (String) request.getPayload();
+
+                // Λήψη αριθμού από τον Buffer του παιχνιδιού
+                int result = SRGHandler.getNextNumber(hashKey);
+
+                // Επιστροφή αποτελέσματος
+                out.writeInt(result);
+                out.flush();
+                
+                System.out.println("[SRG] Sent number " + result + " for key: " + hashKey);
+
+            } catch (Exception e) {
+                System.err.println("Error handling SRG request: " + e.getMessage());
+            } finally {
+                try { socket.close(); } catch (IOException e) { e.printStackTrace(); }
+            }
         }
     }
 }

@@ -4,23 +4,25 @@ import java.util.LinkedList;
 import java.util.Queue;
 
 public class RandomBuffer {
-    private final Queue<Integer> queue = new LinkedList<>();
-    private final int LIMIT = 20;
+    private final Queue<Integer> buffer = new LinkedList<>();
+    private final int MAX_SIZE = 10; // Μέγεθος buffer ανά παιχνίδι
 
-    public synchronized void put(int value) throws InterruptedException {
-        while (queue.size() == LIMIT) {
-            wait();
+    // Ο Producer καλεί αυτή τη μέθοδο για να προσθέσει τυχαίο αριθμό
+    public synchronized void put(int number) throws InterruptedException {
+        while (buffer.size() == MAX_SIZE) {
+            wait(); // Περιμένει αν ο buffer είναι γεμάτος
         }
-        queue.add(value);
-        notifyAll();
+        buffer.add(number);
+        notifyAll(); // Ειδοποιεί τον Consumer ότι υπάρχει αριθμός
     }
 
-    public synchronized int get() throws InterruptedException {
-        while (queue.isEmpty()) {
-            wait();
+    // Ο Handler καλεί αυτή τη μέθοδο για να πάρει αριθμό και να τον στείλει στον Worker
+    public synchronized int take() throws InterruptedException {
+        while (buffer.isEmpty()) {
+            wait(); // Περιμένει αν ο buffer είναι άδειος
         }
-        int val = queue.poll();
-        notifyAll();
-        return val;
+        int number = buffer.poll();
+        notifyAll(); // Ειδοποιεί τον Producer να παράγει κι άλλους
+        return number;
     }
 }

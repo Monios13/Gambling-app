@@ -1,23 +1,31 @@
 package random_generator;
 
-import java.util.Random;
+import java.security.SecureRandom;
 
-public class Producer extends Thread {
-    private RandomBuffer buffer;
+public class Producer implements Runnable {
+    private final RandomBuffer buffer;
+    private final String hashKey;
+    private final SecureRandom secureRandom;
 
-    public Producer(RandomBuffer buffer) {
+    public Producer(RandomBuffer buffer, String hashKey) {
         this.buffer = buffer;
+        this.hashKey = hashKey;
+        // Δημιουργία Secured Random με Seed το hashKey του παιχνιδιού
+        this.secureRandom = new SecureRandom();
+        this.secureRandom.setSeed(hashKey.getBytes());
     }
 
     @Override
     public void run() {
-        Random r = new Random();
         try {
             while (true) {
-                buffer.put(r.nextInt(1000000));
+                int randomNumber = secureRandom.nextInt(100); 
+                buffer.put(randomNumber);
+                // Μικρή καθυστέρηση 
+                Thread.sleep(100); 
             }
         } catch (InterruptedException e) {
-            e.printStackTrace();
+            System.out.println("Producer for " + hashKey + " interrupted.");
         }
     }
 }

@@ -1,68 +1,27 @@
 package random_generator;
 
-import shared.Message;
-import shared.MessageSource;
-import shared.MessageType;
-import java.io.*;
-import java.net.*;
-import java.security.MessageDigest;
+import java.util.HashMap;
+import java.util.Map;
 
-public class SRGHandler extends Thread {
-    
-    private Socket client;
-    private RandomBuffer buffer;
+public class SRGHandler {
+    // Map που συνδέει το Secret Key του JSON με τον αντίστοιχο Buffer
+    private static final Map<String, RandomBuffer> gameBuffers = new HashMap<>();
 
-    public SRGHandler(Socket client, RandomBuffer buffer) {
-        this.client = client;
-        this.buffer = buffer;
-    }
-
-    
-    private String generateSecureResponse(String secret) {
-        try {
-            int number = buffer.get(); // Get from synchronized buffer
+    public static synchronized int getNextNumber(String hashKey) throws InterruptedException {
+        // Αν είναι η πρώτη φορά που βλέπουμε αυτό το παιχνίδι
+        if (!gameBuffers.containsKey(hashKey)) {
+            RandomBuffer newBuffer = new RandomBuffer();
+            gameBuffers.put(hashKey, newBuffer);
             
-            // SHA-256 logic
-            MessageDigest md = MessageDigest.getInstance("SHA-256");
-            byte[] digest = md.digest((number + secret).getBytes());
-            StringBuilder sb = new StringBuilder();
-            for (byte b : digest) {
-                sb.append(String.format("%02x", b));
-            }
-            String hash = sb.toString();
+            // Ξεκινάμε έναν νέο Producer ειδικά για αυτό το παιχνίδι
+            Thread producerThread = new Thread(new Producer(newBuffer, hashKey));
+            producerThread.setDaemon(true); // Κλείνει αυτόματα όταν κλείσει ο Server
+            producerThread.start();
             
-            return number + ":" + hash;
-        } catch (Exception e) {
-            return "ERROR";
+            System.out.println("[SRG] Started dedicated secured producer for key: " + hashKey);
         }
-    }
-
-    @Override
-    public void run() {
-        try {
-            // Using ObjectStreams as required for Message class
-            ObjectInputStream in = new ObjectInputStream(client.getInputStream());
-            ObjectOutputStream out = new ObjectOutputStream(client.getOutputStream());
-
-            // Read the Message object
-            Object input = in.readObject();
-            
-            if (input instanceof Message) {
-                Message msg = (Message) input;
-                if (msg.getType() == MessageType.RANDOM_REQUEST) {
-                    String secret = (String) msg.getPayload();
-                    
-                    // Processing and response
-                    String result = generateSecureResponse(secret);
-                    out.writeObject(new Message(MessageType.RANDOM_RESPONSE, MessageSource.SRG, result));
-                    out.flush();
-                }
-            }
-            
-            client.close(); 
-            
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        
+        // Επιστρέφει τον επόμενο έτοιμο αριθμό (περιμένει αν δεν υπάρχει)
+        return gameBuffers.get(hashKey).take();
     }
 }
