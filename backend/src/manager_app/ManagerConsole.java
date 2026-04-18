@@ -181,7 +181,6 @@ public class ManagerConsole {
         }
 
         game.recalculateDerivedFields();
-        game.normalizeRatingBaseline();
         return game;
     }
 

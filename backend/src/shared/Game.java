@@ -9,6 +9,7 @@ public class Game implements Serializable {
     private String providerName;
     private double stars;
     private int noOfVotes;
+    private int ratingBaseVotes;
     private String gameLogo;
     private double minBet;
     private double maxBet;
@@ -28,6 +29,7 @@ public class Game implements Serializable {
         this.providerName = providerName;
         this.stars = stars;
         this.noOfVotes = noOfVotes;
+        this.ratingBaseVotes = noOfVotes;
         this.gameLogo = gameLogo;
         this.minBet = minBet;
         this.maxBet = maxBet;
@@ -72,6 +74,7 @@ public class Game implements Serializable {
     public double getStars() { return stars; }
     public String getProviderName() { return providerName; }
     public int getNoOfVotes() { return noOfVotes; }
+    public int getRatingBaseVotes() { return ratingBaseVotes; }
     public String getGameLogo() { return gameLogo; }
     public String getRiskLevel() { return riskLevel; }
     public String getHashKey() { return hashKey; }
@@ -83,7 +86,10 @@ public class Game implements Serializable {
     public void setGameName(String gameName) { this.gameName = gameName; }
     public void setProviderName(String providerName) { this.providerName = providerName; }
     public void setStars(double stars) { this.stars = stars; }
-    public void setNoOfVotes(int noOfVotes) { this.noOfVotes = noOfVotes; }
+    public void setNoOfVotes(int noOfVotes) {
+        this.noOfVotes = noOfVotes;
+        this.ratingBaseVotes = noOfVotes;
+    }
     public void setGameLogo(String gameLogo) { this.gameLogo = gameLogo; }
     public void setMinBet(double minBet) { this.minBet = minBet; }
     public void setMaxBet(double maxBet) { this.maxBet = maxBet; }
@@ -104,15 +110,11 @@ public class Game implements Serializable {
         recalculateDerivedFields();
     }
 
-    public synchronized void normalizeRatingBaseline() {
-        this.stars = roundToTwoDecimals(this.stars);
-        this.noOfVotes = this.stars > 0.0 ? 1 : 0;
-    }
-
     public synchronized void applyRating(int rating) {
-        double totalStars = this.stars * this.noOfVotes;
+        int baseVotes = Math.max(this.ratingBaseVotes, 0);
+        double totalStars = this.stars * baseVotes;
         this.noOfVotes++;
-        this.stars = roundToTwoDecimals((totalStars + rating) / this.noOfVotes);
+        this.stars = roundToTwoDecimals((totalStars + rating) / (baseVotes + 1.0));
     }
 
     private double roundToTwoDecimals(double value) {
