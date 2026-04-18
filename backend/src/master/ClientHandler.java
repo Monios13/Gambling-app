@@ -167,22 +167,22 @@ public class ClientHandler implements Runnable {
     }
 
     private Object handleSearch(SearchRequest req) {
-        List<GameSummary> merged = new ArrayList<>();
+    String jobId = "search:" + req.hashCode();
+    int reachableWorkers = 0;
 
-        for (WorkerInfo w : workers) {
-            Message searchMsg = new Message(MessageType.SEARCH_LOCAL, MessageSource.MASTER, req);
-            Object reply = forwardToWorker(w, searchMsg);
-            if (reply instanceof SearchResultResponse) {
-                SearchResultResponse result = (SearchResultResponse) reply;
-                if (result.getGames() != null) {
-                    merged.addAll(result.getGames());
-                }
-            }
-        }
-
-        merged.sort(Comparator.comparingDouble(GameSummary::getStars).reversed());
-        return new SearchResultResponse(merged);
+    // MAP PHASE: Ο Master λέει στους Workers να στείλουν αποτελέσματα στον Reducer
+    for (WorkerInfo w : workers) {
+        // Στέλνουμε το jobId ώστε ο Worker να ξέρει πού να κάνει push στον Reducer
+        Message searchMsg = new Message(MessageType.SEARCH_LOCAL, MessageSource.MASTER, new SearchRequestWrapper(jobId, req));
+        Object reply = forwardToWorker(w, searchMsg);
+        if (!(reply instanceof ErrorResponse)) reachableWorkers++;
     }
+
+    // REDUCE PHASE: Ο Master ζητάει το τελικό αποτέλεσμα από τον Reducer
+    ReduceSearchRequest reduceReq = new ReduceSearchRequest(req, reachableWorkers);
+    Message reduceMsg = new Message(MessageType.SEARCH_GAMES, MessageSource.MASTER, reduceReq);
+    return forwardToReducer(reduceMsg);
+}
 
     private Object handleStatsRequest(MessageType workerRequestType, MessageType reducerRequestType, String jobPrefix) {
         int reachableWorkers = 0;

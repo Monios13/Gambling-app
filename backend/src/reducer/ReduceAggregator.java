@@ -40,23 +40,41 @@ public class ReduceAggregator {
      * then merge them all into a single sorted list and clean up.
      */
     public synchronized List<GameSummary> reduceSearch(String jobId, int expectedWorkers)
-            throws InterruptedException {
+        throws InterruptedException {
 
-        while (searchPartials.getOrDefault(jobId, Collections.emptyList()).size() < expectedWorkers) {
-            wait(5000);   // 5 s timeout guard
-        }
+    long startTime = System.currentTimeMillis();
+    long timeoutLimit = 10000; // 10 δευτερόλεπτα αναμονή το μέγιστο
 
-        List<List<GameSummary>> all = searchPartials.remove(jobId);
-        List<GameSummary> merged = new ArrayList<>();
-        if (all != null) {
-            for (List<GameSummary> chunk : all) {
-                merged.addAll(chunk);
-            }
+    // 1. Μηχανισμός Αναμονής με Timeout
+    while (searchPartials.getOrDefault(jobId, Collections.emptyList()).size() < expectedWorkers) {
+        long elapsed = System.currentTimeMillis() - startTime;
+        if (elapsed >= timeoutLimit) {
+            System.err.println("[Reducer] Timeout reached for job: " + jobId + 
+                               ". Proceeding with " + searchPartials.get(jobId).size() + 
+                               "/" + expectedWorkers + " results.");
+            break; // Βγαίνουμε από το loop ακόμα και αν λείπουν workers
         }
-        // Sort by stars descending so the best games appear first
-        merged.sort(Comparator.comparingDouble(GameSummary::getStars).reversed());
-        return merged;
+        wait(2000); // Περιμένουμε 2 δευτερόλεπτα πριν τον επόμενο έλεγχο
     }
+
+
+    // Παίρνουμε τη λίστα με τις υπο-λίστες που έστειλαν οι Workers
+    List<List<GameSummary>> allPartials = searchPartials.remove(jobId); 
+    List<GameSummary> mergedList = new ArrayList<>();
+
+    if (allPartials != null) {
+        // Εδώ γίνεται το Merge: Ενώνουμε όλα τα κομμάτια σε μία λίστα
+        for (List<GameSummary> partial : allPartials) {
+            mergedList.addAll(partial); 
+        }
+    }
+
+    // 3. Τελική Επεξεργασία (Sorting)
+    // Ταξινομούμε τη συγχωνευμένη λίστα βάσει αστεριών (Descending)
+    mergedList.sort(Comparator.comparingDouble(GameSummary::getStars).reversed());
+
+    return mergedList;
+}
 
     // ── Stats ──────────────────────────────────────────────────────────────────
 

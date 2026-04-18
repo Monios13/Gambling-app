@@ -5,6 +5,7 @@ import shared.BetCategory;
 import shared.ErrorResponse;
 import shared.Game;
 import shared.GameSummary;
+import shared.MapSearchResult;
 import shared.MapStatsResult;
 import shared.Message;
 import shared.MessageSource;
@@ -17,6 +18,7 @@ import shared.RateGameRequest;
 import shared.RemoveGameRequest;
 import shared.RiskLevel;
 import shared.SearchRequest;
+import shared.SearchRequestWrapper;
 import shared.SearchResultResponse;
 
 import java.io.File;
@@ -211,21 +213,47 @@ public class WorkerThread extends Thread {
     }
 
     private void executeSearch(Message msg, ObjectOutputStream out) throws IOException {
-        SearchRequest filters = (SearchRequest) msg.getPayload();
-        List<GameSummary> matchedGames = new ArrayList<>();
+    // 1. Λήψη του Wrapper αντί για το απλό SearchRequest
+    SearchRequestWrapper wrapper = (SearchRequestWrapper) msg.getPayload();
+    String jobId = wrapper.getJobId();
+    SearchRequest filters = wrapper.getSearchRequest();
+    
+    List<GameSummary> matchedGames = new ArrayList<>();
 
-        synchronized (WorkerMain.gamesStorage) {
-            for (Game game : WorkerMain.gamesStorage.values()) {
-                if (matchesFilters(game, filters)) {
-                    matchedGames.add(toSummary(game));
-                }
+    // 2. Map Phase: Φιλτράρισμα τοπικά
+    synchronized (WorkerMain.gamesStorage) {
+        for (Game game : WorkerMain.gamesStorage.values()) {
+            if (matchesFilters(game, filters)) {
+                matchedGames.add(toSummary(game));
             }
         }
+    }
 
-        matchedGames.sort(Comparator.comparingDouble(GameSummary::getStars).reversed());
-        out.writeObject(new SearchResultResponse(matchedGames));
+    // 3. Push to Reducer
+    String reducerHost = "localhost"; 
+    int reducerPort = 8082;
+
+    try (Socket reducerSocket = new Socket(reducerHost, reducerPort);
+         ObjectOutputStream rOut = new ObjectOutputStream(reducerSocket.getOutputStream());
+         ObjectInputStream rIn = new ObjectInputStream(reducerSocket.getInputStream())) {
+
+        MapSearchResult partial = new MapSearchResult(jobId, matchedGames);
+        Message mapMsg = new Message(MessageType.SEARCH_RESULT_PARTIAL, MessageSource.WORKER, partial);
+        rOut.writeObject(mapMsg);
+        rOut.flush();
+        
+        // Λήψη Ack από Reducer
+        rIn.readObject();
+
+        // 4. Ενημέρωση Master: Λέμε στον Master ότι ο Worker τελείωσε το δικό του κομμάτι
+        out.writeObject(new AckResponse(true, "Search partial pushed to reducer."));
+        out.flush();
+
+    } catch (Exception e) {
+        out.writeObject(new ErrorResponse("REDUCER_ERROR", "Worker could not push to Reducer: " + e.getMessage()));
         out.flush();
     }
+}
 
     private void updateGameSettings(Message msg, ObjectOutputStream out) throws IOException {
         EditGameRequest request = (EditGameRequest) msg.getPayload();
@@ -312,6 +340,26 @@ public class WorkerThread extends Thread {
 
         pushStatsPartial(jobId, stats, out);
     }
+    private void sendProviderStats(Message msg, ObjectOutputStream out) throws IOException {
+    String jobId = (String) msg.getPayload(); // Λήψη του μοναδικού ID της εργασίας
+    java.util.Map<String, Double> stats = new java.util.HashMap<>();
+
+    synchronized (WorkerMain.gamesStorage) {
+        for (Game game : WorkerMain.gamesStorage.values()) {
+            synchronized (game) {
+                // MAP PHASE: Ομαδοποίηση ανά Provider Name
+                String provider = game.getProviderName();
+                double profitLoss = game.getTotalProfitLoss();
+                
+                // Προσθήκη στο τοπικό άθροισμα του συγκεκριμένου Provider
+                stats.merge(provider, profitLoss, Double::sum);
+            }
+        }
+    }
+
+    // Αποστολή του τοπικού "Partial" αποτελέσματος στον Reducer
+    pushStatsPartial(jobId, stats, out);
+}
 
     private void rateGame(Message msg, ObjectOutputStream out) throws IOException {
         RateGameRequest request = (RateGameRequest) msg.getPayload();

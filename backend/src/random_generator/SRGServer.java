@@ -2,7 +2,10 @@ package random_generator;
 
 import java.io.*;
 import java.net.*;
-import shared.Message; 
+import shared.Message;
+import shared.MessageSource;
+import shared.MessageType;
+import worker.HashUtil; 
 
 public class SRGServer {
     private static final int PORT = 5000;
@@ -39,7 +42,9 @@ public class SRGServer {
                 int result = SRGHandler.getNextNumber(hashKey);
 
                 // Επιστροφή αποτελέσματος
-                out.writeInt(result);
+                String hash = HashUtil.sha256(result + hashKey);
+                String payload = result + ":" + hash;
+                out.writeObject(new Message(MessageType.RANDOM_RESPONSE, MessageSource.SRG, payload));
                 out.flush();
                 
                 System.out.println("[SRG] Sent number " + result + " for key: " + hashKey);
