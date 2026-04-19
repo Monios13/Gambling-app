@@ -42,7 +42,20 @@ public class ManagerConsole {
                 System.out.println("0. Exit");
                 System.out.print("Choice: ");
 
-                int choice = Integer.parseInt(scanner.nextLine());
+                String input = scanner.nextLine().trim(); 
+
+                    if (input.isEmpty()) {
+                        continue; 
+                    }
+
+                    int choice;
+                    try {
+                        choice = Integer.parseInt(input); 
+                    } catch (NumberFormatException e) {
+                       
+                        System.out.println("\n[ERROR] Μη έγκυρη είσοδος! Παρακαλώ δώστε έναν αριθμό (0-6).");
+                        continue; 
+                }
 
                 if (choice == 0) {
                     System.out.println("Exiting...");
@@ -53,8 +66,22 @@ public class ManagerConsole {
                     case 1:
                         System.out.println("Enter Game JSON string:");
                         String jsonInput = scanner.nextLine();
-                        Game gameFromText = parseJsonToGame(jsonInput);
-                        sendRequest(host, port, new Message(MessageType.ADD_GAME, MessageSource.MANAGER, gameFromText));
+                        
+                        try {
+                            // Προσπάθεια μετατροπής του κειμένου σε αντικείμενο Game
+                            Game gameFromText = parseJsonToGame(jsonInput);
+                            
+                            // Αν φτάσει εδώ, σημαίνει ότι το JSON ήταν σωστό
+                            sendRequest(host, port, new Message(MessageType.ADD_GAME, MessageSource.MANAGER, gameFromText));
+                            
+                        } catch (IllegalArgumentException e) {
+                            
+                            System.out.println("\n[ERROR] Το κείμενο που δώσατε δεν είναι έγκυρο JSON!");
+                            System.out.println("Συμβουλή: Πρέπει να έχει τη μορφή {\"gameName\": \"...\", \"provider\": \"...\", ...}");
+                           
+                        } catch (Exception e) {
+                            System.out.println("\n[ERROR] Συνέβη ένα απρόσμενο σφάλμα: " + e.getMessage());
+                        }
                         break;
                     case 2:
                         System.out.print("Enter game name to remove: ");

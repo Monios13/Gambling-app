@@ -6,25 +6,17 @@ import java.io.*;
 import java.net.*;
 import java.util.*;
 
-/**
- * MasterServer — multithreaded TCP server that:
- *  - Accepts connections from the Manager console, dummy clients, and (in Phase B) the Android app.
- *  - Routes game-management commands to the correct Worker using H(GameName) mod N.
- *  - Orchestrates MapReduce search queries across all Workers via the Reducer.
- *  - Forwards play requests to the appropriate Worker.
- */
 public class MasterServer {
 
-    // ── configuration ────────────────────────────────────────────────────────
+    
     private final int port;
-    private final List<WorkerInfo> workers;   // loaded from config at startup
+    private final List<WorkerInfo> workers;   
     private final String reducerHost;
     private final int    reducerPort;
 
-    // ── state ─────────────────────────────────────────────────────────────────
+    
     private volatile boolean running = true;
 
-    // ── constructor ───────────────────────────────────────────────────────────
     public MasterServer(int port, List<WorkerInfo> workers,
                         String reducerHost, int reducerPort) {
         this.port        = port;
@@ -33,7 +25,7 @@ public class MasterServer {
         this.reducerPort = reducerPort;
     }
 
-    // ── main loop ─────────────────────────────────────────────────────────────
+    //  main loop 
     public void start() {
         System.out.println("[Master] Starting on port " + port
                 + " | workers=" + workers.size()
@@ -66,17 +58,7 @@ public class MasterServer {
         running = false;
     }
 
-    // ── entry point ───────────────────────────────────────────────────────────
-    /**
-     * Usage:
-     *   java master.MasterServer <masterPort> <reducerHost> <reducerPort> <configFile>
-     *
-     * Config file format (one worker per line):
-     *   <id> <host> <port>
-     *   e.g.
-     *   0 localhost 6001
-     *   1 localhost 6002
-     */
+   
     public static void main(String[] args) throws Exception {
         if (args.length < 4) {
             System.err.println("Usage: MasterServer <masterPort> <reducerHost> <reducerPort> <configFile>");

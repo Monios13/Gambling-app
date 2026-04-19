@@ -16,7 +16,7 @@ public class SRGServer {
 
             while (true) {
                 Socket clientSocket = serverSocket.accept();
-                // Πολυνηματικότητα: Κάθε αίτημα σε νέο Thread
+                // Κάθε αίτημα σε νέο Thread
                 new Thread(new ClientTask(clientSocket)).start();
             }
         } catch (IOException e) {

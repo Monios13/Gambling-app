@@ -30,7 +30,6 @@ public class ReducerHandler implements Runnable {
 
             switch (msg.getType()) {
 
-                // Worker pushes its local Map result
                 case SEARCH_RESULT_PARTIAL: {
                     MapSearchResult result = (MapSearchResult) msg.getPayload();
                     aggregator.addSearchPartial(result.getJobId(), result.getGames());
@@ -47,10 +46,9 @@ public class ReducerHandler implements Runnable {
                     break;
                 }
 
-                // Master triggers the Reduce phase
                 case SEARCH_GAMES: {
                     ReduceSearchRequest req = (ReduceSearchRequest) msg.getPayload();
-                    String jobId = "search:" + req.getOriginalRequest().hashCode();
+                    String jobId = req.getJobId();
                     List<GameSummary> merged = aggregator.reduceSearch(jobId, req.getExpectedWorkers());
                     out.writeObject(new SearchResultResponse(merged));
                     out.flush();

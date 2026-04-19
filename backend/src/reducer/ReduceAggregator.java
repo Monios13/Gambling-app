@@ -4,46 +4,28 @@ import shared.GameSummary;
 
 import java.util.*;
 
-/**
- * ReduceAggregator — thread-safe store for intermediate Map results.
- *
- * Workers push their partial results here (keyed by a unique jobId).
- * The Master then asks the Reducer to merge everything for that job.
- *
- * A "job" is identified by a string key:
- *   - For SEARCH:          "search:<requestHashCode>"
- *   - For STATS_PROVIDER:  "provider:<providerName>"
- *   - For STATS_PLAYER:    "player:<playerId>"
- *
- * The Reducer accumulates partial results until the expected number of
- * workers have pushed their data, then runs reduce() and clears the slot.
- */
+
 public class ReduceAggregator {
 
-    // ── Search results ────────────────────────────────────────────────────────
-    // jobId → list of partial GameSummary lists (one per worker)
+   
     private final Map<String, List<List<GameSummary>>> searchPartials = new HashMap<>();
 
-    // ── Stats results ─────────────────────────────────────────────────────────
-    // jobId → list of partial profit/loss maps  (game/player → amount)
+    
     private final Map<String, List<Map<String, Double>>> statsPartials = new HashMap<>();
 
-    // ── Search ─────────────────────────────────────────────────────────────────
+    // ── Search
 
     public synchronized void addSearchPartial(String jobId, List<GameSummary> partial) {
         searchPartials.computeIfAbsent(jobId, k -> new ArrayList<>()).add(partial);
         notifyAll();
     }
 
-    /**
-     * Block until {@code expectedWorkers} partial results have arrived,
-     * then merge them all into a single sorted list and clean up.
-     */
+    
     public synchronized List<GameSummary> reduceSearch(String jobId, int expectedWorkers)
         throws InterruptedException {
 
     long startTime = System.currentTimeMillis();
-    long timeoutLimit = 10000; // 10 δευτερόλεπτα αναμονή το μέγιστο
+    long timeoutLimit = 10000; 
 
     // 1. Μηχανισμός Αναμονής με Timeout
     while (searchPartials.getOrDefault(jobId, Collections.emptyList()).size() < expectedWorkers) {
@@ -52,9 +34,9 @@ public class ReduceAggregator {
             System.err.println("[Reducer] Timeout reached for job: " + jobId + 
                                ". Proceeding with " + searchPartials.get(jobId).size() + 
                                "/" + expectedWorkers + " results.");
-            break; // Βγαίνουμε από το loop ακόμα και αν λείπουν workers
+            break; 
         }
-        wait(2000); // Περιμένουμε 2 δευτερόλεπτα πριν τον επόμενο έλεγχο
+        wait(2000); 
     }
 
 

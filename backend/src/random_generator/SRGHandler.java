@@ -8,7 +8,7 @@ public class SRGHandler {
     private static final Map<String, RandomBuffer> gameBuffers = new HashMap<>();
 
     public static synchronized int getNextNumber(String hashKey) throws InterruptedException {
-        // Αν είναι η πρώτη φορά που βλέπουμε αυτό το παιχνίδι
+
         if (!gameBuffers.containsKey(hashKey)) {
             RandomBuffer newBuffer = new RandomBuffer();
             gameBuffers.put(hashKey, newBuffer);
@@ -21,7 +21,6 @@ public class SRGHandler {
             System.out.println("[SRG] Started dedicated secured producer for key: " + hashKey);
         }
         
-        // Επιστρέφει τον επόμενο έτοιμο αριθμό (περιμένει αν δεν υπάρχει)
         return gameBuffers.get(hashKey).take();
     }
 }

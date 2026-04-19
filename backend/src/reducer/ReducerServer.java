@@ -3,23 +3,11 @@ package reducer;
 import java.io.*;
 import java.net.*;
 
-/**
- * ReducerServer — multithreaded TCP server.
- *
- * Responsibilities:
- *  - Receive intermediate Map results pushed by Workers (PUSH_MAP_RESULT).
- *  - When the Master asks for a final Reduce (REDUCE_SEARCH / GET_STATS_*),
- *    merge all collected partial results and return the final answer.
- *
- * Usage:
- *   java reducer.ReducerServer <port>
- */
 public class ReducerServer {
 
     private final int port;
     private volatile boolean running = true;
 
-    // Shared state managed by the ReduceAggregator (thread-safe internally)
     private final ReduceAggregator aggregator = new ReduceAggregator();
 
     public ReducerServer(int port) {

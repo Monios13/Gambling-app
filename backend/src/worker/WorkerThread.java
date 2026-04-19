@@ -1,7 +1,17 @@
 package worker;
 
+import java.io.File;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.net.Socket;
+import java.nio.file.Files;
+import java.util.ArrayList;
+import java.util.List;
+
 import shared.AckResponse;
 import shared.BetCategory;
+import shared.EditGameRequest;
 import shared.ErrorResponse;
 import shared.Game;
 import shared.GameSummary;
@@ -10,8 +20,6 @@ import shared.MapStatsResult;
 import shared.Message;
 import shared.MessageSource;
 import shared.MessageType;
-import shared.EditGameRequest;
-import shared.EditRiskRequest;
 import shared.PlayRequest;
 import shared.PlayResultResponse;
 import shared.RateGameRequest;
@@ -19,17 +27,6 @@ import shared.RemoveGameRequest;
 import shared.RiskLevel;
 import shared.SearchRequest;
 import shared.SearchRequestWrapper;
-import shared.SearchResultResponse;
-
-import java.io.File;
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-import java.net.Socket;
-import java.nio.file.Files;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
 
 public class WorkerThread extends Thread {
 
@@ -62,9 +59,7 @@ public class WorkerThread extends Thread {
                 case SEARCH_LOCAL:
                     executeSearch(msg, out);
                     break;
-                case UPDATE_GAME_RISK_LOCAL:
-                    updateGameRisk(msg, out);
-                    break;
+
                 case UPDATE_GAME_SETTINGS_LOCAL:
                     updateGameSettings(msg, out);
                     break;
@@ -73,6 +68,9 @@ public class WorkerThread extends Thread {
                     break;
                 case GET_PLAYER_STATS_LOCAL:
                     sendPlayerStats(msg, out);
+                    break;
+                case GET_PROVIDER_STATS_LOCAL: 
+                    sendProviderStats(msg, out);
                     break;
                 case RATE_GAME_LOCAL:
                     rateGame(msg, out);
@@ -101,7 +99,7 @@ public class WorkerThread extends Thread {
 
         String backupHost = "localhost";
         int backupPort = 8083;
-        replicateToBackuo(game, backupHost, backupPort);
+        replicateToBackup(game, backupHost, backupPort);
 
         out.writeObject(new Message(MessageType.ACK, MessageSource.WORKER, "Game stored and replicated."));
         out.flush();
@@ -213,47 +211,53 @@ public class WorkerThread extends Thread {
     }
 
     private void executeSearch(Message msg, ObjectOutputStream out) throws IOException {
-    // 1. Λήψη του Wrapper αντί για το απλό SearchRequest
-    SearchRequestWrapper wrapper = (SearchRequestWrapper) msg.getPayload();
-    String jobId = wrapper.getJobId();
-    SearchRequest filters = wrapper.getSearchRequest();
-    
-    List<GameSummary> matchedGames = new ArrayList<>();
+        SearchRequestWrapper wrapper = (SearchRequestWrapper) msg.getPayload();
+        String jobId = wrapper.getJobId();
+        SearchRequest filters = wrapper.getSearchRequest();
+        
+        List<GameSummary> matchedGames = new ArrayList<>();
 
-    // 2. Map Phase: Φιλτράρισμα τοπικά
-    synchronized (WorkerMain.gamesStorage) {
-        for (Game game : WorkerMain.gamesStorage.values()) {
-            if (matchesFilters(game, filters)) {
-                matchedGames.add(toSummary(game));
+        System.out.println("[Worker] Starting local filter for JobId: " + jobId);
+
+        synchronized (WorkerMain.gamesStorage) {
+            for (Game game : WorkerMain.gamesStorage.values()) {
+                // try-catch ΜΕΣΑ στο loop για να μην καταρρέει όλη η αναζήτηση από ένα "κακό" παιχνίδι
+                try {
+                    if (matchesFilters(game, filters)) {
+                        matchedGames.add(toSummary(game));
+                    }
+                } catch (Exception e) {
+                    System.err.println("[Worker Error] Failed to process game: " + game.getGameName() + " - " + e.getMessage());
+                }
             }
         }
+
+        System.out.println("[Worker] Found " + matchedGames.size() + " matches. Pushing to Reducer...");
+
+        String reducerHost = "localhost"; 
+        int reducerPort = 8082;
+
+        try (Socket reducerSocket = new Socket(reducerHost, reducerPort);
+            ObjectOutputStream rOut = new ObjectOutputStream(reducerSocket.getOutputStream());
+            ObjectInputStream rIn = new ObjectInputStream(reducerSocket.getInputStream())) {
+
+            MapSearchResult partial = new MapSearchResult(jobId, matchedGames);
+            Message mapMsg = new Message(MessageType.SEARCH_RESULT_PARTIAL, MessageSource.WORKER, partial);
+            rOut.writeObject(mapMsg);
+            rOut.flush();
+            
+            rIn.readObject();
+
+            System.out.println("[Worker] Partial results successfully pushed to Reducer for job: " + jobId);
+            out.writeObject(new AckResponse(true, "Search partial pushed to reducer."));
+            out.flush();
+
+        } catch (Exception e) {
+            System.err.println("[Worker Error] Reducer Connection Failed: " + e.getMessage());
+            out.writeObject(new ErrorResponse("REDUCER_ERROR", "Worker could not push to Reducer: " + e.getMessage()));
+            out.flush();
+        }
     }
-
-    // 3. Push to Reducer
-    String reducerHost = "localhost"; 
-    int reducerPort = 8082;
-
-    try (Socket reducerSocket = new Socket(reducerHost, reducerPort);
-         ObjectOutputStream rOut = new ObjectOutputStream(reducerSocket.getOutputStream());
-         ObjectInputStream rIn = new ObjectInputStream(reducerSocket.getInputStream())) {
-
-        MapSearchResult partial = new MapSearchResult(jobId, matchedGames);
-        Message mapMsg = new Message(MessageType.SEARCH_RESULT_PARTIAL, MessageSource.WORKER, partial);
-        rOut.writeObject(mapMsg);
-        rOut.flush();
-        
-        // Λήψη Ack από Reducer
-        rIn.readObject();
-
-        // 4. Ενημέρωση Master: Λέμε στον Master ότι ο Worker τελείωσε το δικό του κομμάτι
-        out.writeObject(new AckResponse(true, "Search partial pushed to reducer."));
-        out.flush();
-
-    } catch (Exception e) {
-        out.writeObject(new ErrorResponse("REDUCER_ERROR", "Worker could not push to Reducer: " + e.getMessage()));
-        out.flush();
-    }
-}
 
     private void updateGameSettings(Message msg, ObjectOutputStream out) throws IOException {
         EditGameRequest request = (EditGameRequest) msg.getPayload();
@@ -307,13 +311,7 @@ public class WorkerThread extends Thread {
         out.flush();
     }
 
-    private void updateGameRisk(Message msg, ObjectOutputStream out) throws IOException {
-        EditRiskRequest request = (EditRiskRequest) msg.getPayload();
-        EditGameRequest editGameRequest = new EditGameRequest();
-        editGameRequest.setGameName(request.getGameName());
-        editGameRequest.setNewRiskLevel(request.getNewRiskLevel());
-        updateGameSettings(new Message(MessageType.UPDATE_GAME_SETTINGS_LOCAL, MessageSource.MASTER, editGameRequest), out);
-    }
+
 
     private void sendGameStats(Message msg, ObjectOutputStream out) throws IOException {
         String jobId = (String) msg.getPayload();
@@ -351,13 +349,11 @@ public class WorkerThread extends Thread {
                 String provider = game.getProviderName();
                 double profitLoss = game.getTotalProfitLoss();
                 
-                // Προσθήκη στο τοπικό άθροισμα του συγκεκριμένου Provider
                 stats.merge(provider, profitLoss, Double::sum);
             }
         }
     }
 
-    // Αποστολή του τοπικού "Partial" αποτελέσματος στον Reducer
     pushStatsPartial(jobId, stats, out);
 }
 
@@ -489,7 +485,7 @@ public class WorkerThread extends Thread {
         }
     }
 
-    private void replicateToBackuo(Game game, String host, int port) {
+    private void replicateToBackup(Game game, String host, int port) {
         try (Socket socket = new Socket(host, port);
              ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream())) {
 
@@ -499,18 +495,5 @@ public class WorkerThread extends Thread {
         } catch (IOException e) {
             System.out.println("Backup Worker is offline. Replication failed.");
         }
-    }
-
-    private void sendGameLogo(String gameName, ObjectOutputStream out) throws IOException {
-        File logoFile = new File("logos/" + gameName.toLowerCase() + ".png");
-
-        if (!logoFile.exists()) {
-            out.writeObject(new Message(MessageType.ERROR, MessageSource.WORKER, "Logo not found"));
-            return;
-        }
-
-        byte[] imageBytes = Files.readAllBytes(logoFile.toPath());
-        out.writeObject(new Message(MessageType.LOGO_RESPONSE, MessageSource.WORKER, imageBytes));
-        out.flush();
     }
 }

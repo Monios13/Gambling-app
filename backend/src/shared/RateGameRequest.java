@@ -5,7 +5,7 @@ import java.io.Serializable;
 public class RateGameRequest implements Serializable {
     private String playerId;
     private String gameName;
-    private int rating; // 1-5
+    private int rating; 
 
     public RateGameRequest() {}
 

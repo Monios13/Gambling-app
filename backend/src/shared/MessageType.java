@@ -25,6 +25,7 @@ public enum MessageType {
     RATE_GAME_LOCAL,
     GET_GAME_STATS_LOCAL,
     GET_PLAYER_STATS_LOCAL,
+    GET_PROVIDER_STATS_LOCAL,
 
     // Worker -> SRG
     RANDOM_REQUEST,

@@ -72,15 +72,7 @@ public class ClientHandler implements Runnable {
                         break;
                     }
 
-                    case EDIT_GAME_RISK: {
-                        EditRiskRequest req = (EditRiskRequest) msg.getPayload();
-                        WorkerInfo target = selector.select(req.getGameName());
-                        Message workerMsg = new Message(MessageType.UPDATE_GAME_RISK_LOCAL, MessageSource.MASTER, req);
-                        Object reply = forwardToWorker(target, workerMsg);
-                        out.writeObject(reply);
-                        out.flush();
-                        break;
-                    }
+                
 
                     case EDIT_GAME_SETTINGS: {
                         EditGameRequest req = (EditGameRequest) msg.getPayload();
@@ -167,22 +159,28 @@ public class ClientHandler implements Runnable {
     }
 
     private Object handleSearch(SearchRequest req) {
-    String jobId = "search:" + req.hashCode();
-    int reachableWorkers = 0;
+        
+        String jobId = "search:" + req.hashCode();
+        int reachableWorkers = 0;
 
-    // MAP PHASE: Ο Master λέει στους Workers να στείλουν αποτελέσματα στον Reducer
-    for (WorkerInfo w : workers) {
-        // Στέλνουμε το jobId ώστε ο Worker να ξέρει πού να κάνει push στον Reducer
-        Message searchMsg = new Message(MessageType.SEARCH_LOCAL, MessageSource.MASTER, new SearchRequestWrapper(jobId, req));
-        Object reply = forwardToWorker(w, searchMsg);
-        if (!(reply instanceof ErrorResponse)) reachableWorkers++;
+        //  MAP PHASE: Στέλνουμε το αίτημα σε όλους τους Workers
+        for (WorkerInfo worker : workers) {
+        
+            Message searchMsg = new Message(MessageType.SEARCH_LOCAL, MessageSource.MASTER, new SearchRequestWrapper(jobId, req));
+            
+            Object reply = forwardToWorker(worker, searchMsg); 
+            
+            if (!(reply instanceof ErrorResponse)) {
+                reachableWorkers++;
+            }
+        }
+
+        // 3. REDUCE PHASE:αίτημα στον Reducer
+        ReduceSearchRequest reduceReq = new ReduceSearchRequest(jobId, req, reachableWorkers);
+        Message reduceMsg = new Message(MessageType.SEARCH_GAMES, MessageSource.MASTER, reduceReq);
+        
+        return forwardToReducer(reduceMsg);
     }
-
-    // REDUCE PHASE: Ο Master ζητάει το τελικό αποτέλεσμα από τον Reducer
-    ReduceSearchRequest reduceReq = new ReduceSearchRequest(req, reachableWorkers);
-    Message reduceMsg = new Message(MessageType.SEARCH_GAMES, MessageSource.MASTER, reduceReq);
-    return forwardToReducer(reduceMsg);
-}
 
     private Object handleStatsRequest(MessageType workerRequestType, MessageType reducerRequestType, String jobPrefix) {
         int reachableWorkers = 0;
